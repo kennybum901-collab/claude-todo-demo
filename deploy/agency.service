@@ -1,0 +1,17 @@
+# Alternative to Docker: systemd on any Linux VPS.
+#   sudo cp deploy/agency.service /etc/systemd/system/ && sudo systemctl enable --now agency
+# Put Caddy or nginx in front for HTTPS (e.g. `caddy reverse-proxy --from bots.yourstudio.com --to :8000`).
+[Unit]
+Description=Website agency bots + webhook server
+After=network-online.target
+
+[Service]
+User=agency
+WorkingDirectory=/opt/agency
+EnvironmentFile=/opt/agency/.env
+ExecStart=/usr/bin/python3 -m agency serve
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

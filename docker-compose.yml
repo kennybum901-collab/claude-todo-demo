@@ -1,0 +1,23 @@
+# Production: `DOMAIN=bots.yourstudio.com docker compose up -d`
+# Caddy gets an HTTPS certificate automatically; point the domain's DNS A record at the server first.
+services:
+  agency:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PUBLIC_URL: https://${DOMAIN:?set DOMAIN}
+      SENDERS_FILE: /app/senders.json
+    volumes:
+      - ./data:/data                # database + generated sites (back this up)
+      - ./vault:/vault              # Obsidian vault: sync it with Obsidian Sync / Syncthing / git
+      - ./senders.json:/app/senders.json:ro
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    command: caddy reverse-proxy --from ${DOMAIN:?set DOMAIN} --to agency:8000
+    volumes:
+      - caddy_data:/data
+volumes:
+  caddy_data:

@@ -26,6 +26,7 @@ from pathlib import Path
 
 from .config import Config
 from .db import DB
+from .unsubscribe import headers as unsubscribe_headers
 
 log = logging.getLogger(__name__)
 BOUNCE_WINDOW = 50       # look at the last N sends per inbox
@@ -62,7 +63,7 @@ class Sender:
 
 def load_senders(cfg: Config) -> list[Sender]:
     path = Path(cfg.senders_file)
-    if path.exists():
+    if path.is_file():  # Docker creates a directory if the mounted file is missing
         raw = json.loads(path.read_text())
         senders = []
         for item in raw:
@@ -153,10 +154,11 @@ class Mailer:
 
     # ---------- sending ----------
     def send(self, sender: Sender, msg: EmailMessage, *, bot: str, lead_id: int, detail: str) -> None:
-        for h in ("From", "List-Unsubscribe", "Reply-To"):
+        for h in ("From", "List-Unsubscribe", "List-Unsubscribe-Post", "Reply-To"):
             del msg[h]
         msg["From"] = f"{sender.from_name} <{sender.email}>"
-        msg["List-Unsubscribe"] = f"<mailto:{sender.email}?subject=unsubscribe>"
+        for k, v in unsubscribe_headers(msg["To"], sender.email, self.cfg).items():
+            msg[k] = v
         live = self.live and sender.can_send_live
         if live:
             conn = self._conns.get(sender.email)

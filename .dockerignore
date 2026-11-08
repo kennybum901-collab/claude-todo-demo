@@ -1,0 +1,9 @@
+.git
+.env
+data/
+senders.json
+vault/Leads/
+vault/Daily/
+vault/Dashboard.md
+**/__pycache__
+tests/

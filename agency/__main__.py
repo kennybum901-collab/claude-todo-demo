@@ -26,6 +26,8 @@ def main(argv: list[str] | None = None) -> int:
     d.add_argument("--every", type=int, default=60, help="minutes between runs")
     i = sub.add_parser("import-csv", help="import leads from a CSV file")
     i.add_argument("path")
+    sv = sub.add_parser("serve", help="production server: bots on a schedule + Stripe webhooks + unsubscribe")
+    sv.add_argument("--no-bots", action="store_true", help="only serve HTTP, don't run the pipeline")
     sub.add_parser("report", help="show pipeline + revenue metrics")
     sub.add_parser("call-list", help="print phone-only leads to call (CSV)")
     pr = sub.add_parser("preview-email", help="print the email a lead would receive")
@@ -44,13 +46,16 @@ def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     db = DB(config.db_path)
 
-    if config.dry_run and args.cmd in ("run", "daemon"):
+    if config.dry_run and args.cmd in ("run", "daemon", "serve"):
         logging.warning("DRY_RUN is on: nothing will be emailed, deployed or charged.")
 
     if args.cmd == "run":
         print(json.dumps(Orchestrator(db, config).run_once(), indent=2, default=str))
     elif args.cmd == "daemon":
         Orchestrator(db, config).run_forever(args.every)
+    elif args.cmd == "serve":
+        from .server import serve
+        serve(config, run_bots=not args.no_bots)
     elif args.cmd == "import-csv":
         print(f"imported {LeadBot(db, config).import_csv(args.path)} leads")
     elif args.cmd == "report":

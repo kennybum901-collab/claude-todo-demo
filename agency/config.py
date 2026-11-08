@@ -70,6 +70,13 @@ class Config:
     obsidian_vault: Path = Path(os.environ.get("OBSIDIAN_VAULT") or ROOT / "vault")
     obsidian_enabled: bool = _bool("OBSIDIAN_SYNC", True)
 
+    # --- Server (python -m agency serve) ---
+    public_url: str = os.environ.get("PUBLIC_URL", "").rstrip("/")    # e.g. https://bots.yourstudio.com
+    port: int = _int("PORT", 8000)
+    run_every_minutes: int = _int("RUN_EVERY_MINUTES", 60)
+    stripe_webhook_secret: str = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+    app_secret: str = os.environ.get("APP_SECRET", "")                 # signs unsubscribe links
+
     # --- Integrations (all optional; bots degrade gracefully without them) ---
     google_places_key: str = os.environ.get("GOOGLE_PLACES_API_KEY", "")
     anthropic_model: str = os.environ.get("ANTHROPIC_MODEL", "claude-opus-5-5")

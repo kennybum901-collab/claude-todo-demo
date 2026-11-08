@@ -21,6 +21,7 @@ from jinja2 import Environment, FileSystemLoader
 from ..config import Config
 from ..db import DB, now
 from ..mailer import Mailer
+from ..unsubscribe import url as unsubscribe_url
 from .billing_bot import API as STRIPE_API
 from .builder_bot import TEMPLATES
 from .outreach_bot import money
@@ -124,7 +125,7 @@ class UpsellBot:
     def compose(self, lead, addon: Addon, payment_url: str) -> EmailMessage:
         body = self.env.get_template("email_upsell.txt.j2").render(
             lead=lead, cfg=self.cfg, addon=addon, price=money(addon.price_cents),
-            payment_url=payment_url,
+            payment_url=payment_url, unsub=unsubscribe_url(lead["email"], self.cfg),
         )
         subject, _, text = body.partition("\n")
         msg = EmailMessage()

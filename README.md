@@ -25,6 +25,7 @@ See **[vault/Business Plan.md](vault/Business%20Plan.md)** for the offer, pricin
 | Monitor bot | `agency/bots/monitor_bot.py` | Uptime checks for paying clients |
 | Obsidian sync | `agency/obsidian.py` | Writes one CRM note per lead, a live Dashboard and a daily log into your vault; reads `do_not_contact` flags back |
 | Mailer | `agency/mailer.py` | Rotates sends across multiple inboxes with per-inbox caps, warm-up ramps, sticky threads and auto-pause on bounces |
+| Server | `agency/server.py` | `agency serve`: bots on a schedule, Stripe webhooks, one-click unsubscribe, `/health` |
 | Orchestrator | `agency/orchestrator.py` | Runs everything in order; one failing bot never stops the rest |
 
 ## Quick start (safe: dry-run)
@@ -55,6 +56,31 @@ python -m agency daemon --every 60          # or cron: 0 * * * * cd /app && pyth
 ```
 
 The outreach bot refuses to email anyone until that lead has a real `https://` preview and a real Stripe link.
+
+## Deploying to a server
+
+A $5–10/month VPS (Hetzner, DigitalOcean, Lightsail…) is enough. `python -m agency serve` runs everything in one process:
+
+- the full bot pipeline every `RUN_EVERY_MINUTES` (default 60)
+- `POST /stripe/webhook` for instant payments, add-on purchases, cancellations and failed cards (signature-verified with `STRIPE_WEBHOOK_SECRET`)
+- `GET/POST /unsubscribe` for signed one-click unsubscribe links (RFC 8058, which Gmail and Yahoo require for bulk senders)
+- `GET /health` for liveness only, with no customer data; point an uptime monitor at it
+
+**With Docker (recommended):**
+
+```bash
+# on the server, with DNS for bots.yourstudio.com pointing at it
+git clone <this repo> agency && cd agency
+cp .env.example .env              # fill in, set APP_SECRET (random) and DRY_RUN=1 at first
+cp senders.example.json senders.json
+DOMAIN=bots.yourstudio.com docker compose up -d --build
+```
+
+Caddy gets the HTTPS certificate automatically. Data lives in `./data` (back it up) and the Obsidian vault in `./vault`; sync it to your laptop with Obsidian Sync, Syncthing or similar.
+
+**Stripe webhook:** Dashboard → Developers → Webhooks → *Add endpoint* `https://bots.yourstudio.com/stripe/webhook` with events `checkout.session.completed`, `customer.subscription.deleted` and `invoice.payment_failed`. Copy the signing secret into `STRIPE_WEBHOOK_SECRET`. Hourly polling stays on as a backup, and both paths are idempotent.
+
+**Without Docker:** `deploy/agency.service` is a systemd unit. Put Caddy or nginx in front for HTTPS.
 
 ## Obsidian
 

@@ -10,4 +10,7 @@ tags: agency/playbook
 - [ ] Ran in `DRY_RUN=1`, read 10 generated sites and `preview-email` outputs
 - [ ] Targeting US businesses (CAN-SPAM). EU/UK/Canada need consent first.
 - [ ] Simple service agreement and refund policy written
+- [ ] VPS + domain for the bots (e.g. `bots.yourstudio.com`), `docker compose up -d --build`
+- [ ] `APP_SECRET` set (one-click unsubscribe), Stripe webhook endpoint added, `STRIPE_WEBHOOK_SECRET` set
+- [ ] Uptime monitor pointed at `https://bots.yourstudio.com/health`
 - [ ] `DRY_RUN=0`, `DAILY_EMAIL_CAP=20` for week one, then the daemon or cron

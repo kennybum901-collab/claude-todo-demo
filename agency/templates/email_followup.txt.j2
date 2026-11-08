@@ -14,3 +14,4 @@ Claim it ({{ setup }} setup + {{ monthly }}/mo): {{ lead.payment_url }}
 --
 {{ cfg.company_name }}, {{ cfg.company_address }}
 Reply "STOP" to opt out.
+{% if unsub %}Unsubscribe instantly: {{ unsub }}{% endif %}

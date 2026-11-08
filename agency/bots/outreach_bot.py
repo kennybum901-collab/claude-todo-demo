@@ -25,6 +25,7 @@ from ..config import Config
 from ..copywriter import draft_reply
 from ..db import DB
 from ..mailer import Mailer
+from ..unsubscribe import url as unsubscribe_url
 from .builder_bot import TEMPLATES
 
 log = logging.getLogger(__name__)
@@ -66,6 +67,7 @@ class OutreachBot:
         variant = lead.get("variant") or self.pick_variant(lead)
         body = self.env.get_template(tpl).render(
             lead=lead, cfg=self.cfg, opener=opener, step=step,
+            unsub=unsubscribe_url(lead["email"], self.cfg) if lead.get("email") else None,
             subject=SUBJECT_VARIANTS[variant].format(name=lead["business_name"]),
             setup=money(self.cfg.setup_fee_cents), monthly=money(self.cfg.monthly_fee_cents),
         )
