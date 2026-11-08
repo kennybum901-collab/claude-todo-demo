@@ -1,4 +1,4 @@
-"""SQLite storage: the single source of truth for the whole pipeline.
+r"""SQLite storage: the single source of truth for the whole pipeline.
 
 Lead lifecycle (``leads.status``):
     new -> built -> deployed -> contacted -> replied -> client
