@@ -38,6 +38,8 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("pause", help="KILL SWITCH: stop all marketing email (outreach, offers, reports)")
     sub.add_parser("resume", help="resume marketing email after `pause`")
     sub.add_parser("qa", help="run quality checks on recent sites and emails")
+    cs = sub.add_parser("company-site", help="generate your own company website (and --deploy it to Netlify)")
+    cs.add_argument("--deploy", action="store_true")
     st = sub.add_parser("setup", help="guided setup: answers a few questions and writes .env for you")
     st.add_argument("--offline", action="store_true", help="skip the connection tests at the end")
     dr = sub.add_parser("doctor", help="check settings and test every connection before going live")
@@ -123,6 +125,14 @@ def main(argv: list[str] | None = None) -> int:
                 bad += 1
                 print(f"email #{m['id']} to {m['to_addr']}: {p}")
         print("all checks passed" if not bad else f"{bad} problem(s)")
+    elif args.cmd == "company-site":
+        from .company_site import build, deploy
+        out = build(config)
+        print(f"company website written to {out}/index.html")
+        if args.deploy:
+            print(f"live at {deploy(config, out, db)}  -> point {config.company_url} at it in Netlify > Domain settings")
+        else:
+            print("publish it: python -m agency company-site --deploy  (or drag the folder onto app.netlify.com/drop)")
     elif args.cmd == "setup":
         import importlib
         from . import config as config_module

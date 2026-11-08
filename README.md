@@ -39,6 +39,7 @@ See **[vault/Business Plan.md](vault/Business%20Plan.md)** for the offer, pricin
 | Referrals | `agency/referrals.py` | Personal referral link per client; a sign-up page with consent for referred businesses ($100 off setup, priority outreach); the referrer gets a free month via Stripe coupon |
 | Review Booster | `agency/reviews.py` | Delivers the $99/mo add-on: a private "job done" phone page per client, review-request emails to their customers sent in the business's name, 1 reminder, click tracking, optional private feedback (never review-gated) |
 | Photos | `agency/photos.py` | Client-emailed photos (approved in Obsidian with previews) and optional free Pexels stock photos with credit; resized and GPS/EXIF stripped |
+| Company site | `agency/company_site.py` | Your own website from your settings: pitch, how it works, 4 live example designs, pricing and add-ons, FAQ, a "get my free preview" form (inbound leads jump the queue) |
 | Orchestrator | `agency/orchestrator.py` | Runs everything in order; one failing bot never stops the rest |
 
 ## Quick start (safe: dry-run)

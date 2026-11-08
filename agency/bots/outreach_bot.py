@@ -71,6 +71,8 @@ class OutreachBot:
             setup_cents = max(0, setup_cents - self.cfg.referral_discount_cents)
             if step == 0:
                 tpl = "email_referral.txt.j2"
+        if lead.get("source") == "inbound" and step == 0:
+            tpl = "email_inbound.txt.j2"
         body = self.env.get_template(tpl).render(
             referrer=referrer, discount=money(self.cfg.referral_discount_cents),
             lead=lead, cfg=self.cfg, opener=opener, step=step,
@@ -111,7 +113,8 @@ class OutreachBot:
             # follow-ups first (they're owed), then first emails, highest score first
             deployed = self.db.leads_by_status("deployed", by_score=True)
             # referred (opted-in) leads go first, then the rest by score
-            deployed = [r for r in deployed if r["referred_by"]] + [r for r in deployed if not r["referred_by"]]
+            warm = lambda r: bool(r["referred_by"]) or r["source"] == "inbound"  # noqa: E731  opted-in leads
+            deployed = [r for r in deployed if warm(r)] + [r for r in deployed if not warm(r)]
             queue = self.db.leads_by_status("contacted") + deployed
             for row in queue:
                 lead = dict(row)
@@ -123,7 +126,8 @@ class OutreachBot:
                 step = self._due(lead)
                 if step is None:
                     continue
-                if (step == 0 and not lead.get("referred_by") and lead.get("score") is not None
+                if (step == 0 and not lead.get("referred_by") and lead.get("source") != "inbound"
+                        and lead.get("score") is not None
                         and lead["score"] < self.cfg.min_lead_score):
                     continue  # weak lead: never cold-emailed (still on the call list)
                 if self.live and not (

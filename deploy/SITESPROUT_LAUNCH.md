@@ -55,6 +55,15 @@ Claude Console → API keys. Better site copy, reply drafts, automatic site edit
 4. In Stripe: **Developers → Webhooks → Add endpoint** `https://bots.sitesproutaustin.com/stripe/webhook` with events `checkout.session.completed`, `customer.subscription.deleted`, `invoice.payment_failed`. Paste the signing secret: re-run `setup` (or edit `.env`), then `docker compose up -d`.
 5. Phone alerts: install the **ntfy** app, subscribe to a long random topic, and set `ALERT_WEBHOOK_URL=https://ntfy.sh/<that-topic>`.
 
+## 7b. Your own website (sitesproutaustin.com)
+Prospects will look you up. Generate SiteSprout's site from your settings and publish it:
+```bash
+docker compose exec agency python -m agency company-site            # writes data/company-site/
+# with DRY_RUN=0 and NETLIFY_TOKEN set:  ... company-site --deploy
+# or drag data/company-site/ onto app.netlify.com/drop
+```
+Then in Netlify go to **Domain settings → Add domain** `sitesproutaustin.com` and follow its DNS instructions. The site has pricing, the four example designs, an FAQ and a **"Get my free preview"** form. Requests go to the front of the outreach queue and you get an email for each one. Re-run the command after changing prices or niches.
+
 ## 8. Dry run: one week, nothing is sent
 1. Google Places key in setup (or import a list: `docker compose exec agency python -m agency import-csv leads.csv`).
 2. Let it run. Every morning read the **daily review email**: sample sites (open the attachments) and the exact emails it would send.

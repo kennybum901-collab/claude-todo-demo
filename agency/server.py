@@ -184,6 +184,48 @@ def make_handler(cfg: Config):
             fwd = self.headers.get("X-Forwarded-For", "")
             return fwd.split(",")[0].strip() or self.client_address[0]
 
+        def _get_started(self, body: bytes):
+            """'Get my free preview' form on your own company website."""
+            back = f"<p><a href='{escape(cfg.company_url)}'>&larr; Back to {escape(cfg.company_name)}</a></p>"
+            if not referral_limiter.allow(self._client_ip()):
+                return self._send(429, PAGE.format(title="Slow down", body="<p>Please try again later.</p>" + back))
+            form = {k: v[0] for k, v in parse_qs(body.decode(errors="ignore")).items()}
+            db = self._db()
+            try:
+                lead_id = submit_referral(db, cfg, None, form)
+            except ReferralError as exc:
+                if str(exc) == "spam":
+                    return self._send(200, PAGE.format(title="Thanks", body="<h1>Thanks!</h1>" + back))
+                code = 200 if "already have" in str(exc) else 400
+                return self._send(code, PAGE.format(title="Free website preview", body=(
+                    f"<h1>{'Thanks!' if code == 200 else 'Almost there'}</h1><p>{escape(str(exc))}</p>"
+                    + (back if code == 200 else "<p><a href='javascript:history.back()'>&larr; Go back</a></p>"))))
+            self._notify_owner_new_lead(db, lead_id)
+            return self._send(200, PAGE.format(title="You're in!", body=(
+                "<h1>You're in!</h1><p>We'll build your free preview and email you the link within a day or two.</p>" + back)))
+
+        def _notify_owner_new_lead(self, db, lead_id: int) -> None:
+            from email.message import EmailMessage
+            from .mailer import Mailer
+            lead = db.get_lead(lead_id)
+            msg = EmailMessage()
+            msg["Subject"] = f"🌱 New preview request: {lead['business_name']}"
+            msg["To"] = cfg.digest_email or cfg.alert_email or cfg.company_email
+            msg.set_content(
+                f"{lead['business_name']} asked for a free preview on your website.\n\n"
+                f"Type: {lead['niche'] or '-'}\nEmail: {lead['email']}\nPhone: {lead['phone'] or '-'}\n"
+                f"Notes: {lead['notes']}\n\nThe bots will build their site and email them on the next run "
+                "(they go to the front of the queue).\n")
+            mailer = Mailer(db, cfg)
+            sender = mailer.notify_sender(to_owner=True)
+            if sender is not None:
+                try:
+                    mailer.send(sender, msg, bot="inbound", lead_id=lead_id, detail="new inbound lead", to_owner=True)
+                except Exception as exc:
+                    log.warning("owner notification failed: %s", exc)
+                finally:
+                    mailer.close()
+
         def _twilio_inbound(self, body: bytes):
             """Inbound text (Twilio webhook): STOP-type replies suppress the number."""
             from .sms import STOP_WORDS, normalize_phone, suppression_key, verify_twilio
@@ -419,6 +461,8 @@ def make_handler(cfg: Config):
                 return self._jobs(u.path, body)
             if u.path.startswith("/rv/"):
                 return self._review_click(u.path, body)
+            if u.path == "/get-started":
+                return self._get_started(body)
             if u.path.startswith("/r/") and cfg.referrals_enabled:
                 db = self._db()
                 referrer = referrer_for_code(db, u.path[3:].strip("/"), cfg.app_secret)

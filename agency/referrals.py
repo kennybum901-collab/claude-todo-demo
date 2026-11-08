@@ -54,7 +54,9 @@ class ReferralError(ValueError):
 
 
 def submit(db: DB, cfg: Config, referrer, form: dict[str, str]) -> int:
-    """Create a consented, referred lead from the landing-page form."""
+    """Create a consented lead from a sign-up form: a client's referral page
+    (referrer = that client) or your own website's 'get a free preview' form
+    (referrer = None, source 'inbound')."""
     if form.get("website"):
         raise ReferralError("spam")
     data = {k: (form.get(k) or "").strip()[:limit] for k, limit in
@@ -71,13 +73,17 @@ def submit(db: DB, cfg: Config, referrer, form: dict[str, str]) -> int:
     # same neutral answer so the form doesn't reveal who is on the list
     if existing or db.is_suppressed(data["email"]):
         raise ReferralError("We already have your details. We'll be in touch!")
+    inbound = referrer is None
     lead_id = db.add_lead(
         business_name=data["business_name"], niche=data["niche"] or None, city=data["city"] or None,
-        phone=data["phone"] or None, email=data["email"].lower(), source="referral",
-        source_id=f"ref:{data['email'].lower()}", referred_by=referrer["id"],
-        notes=f"Referred by {referrer['business_name']}; contact: {data['contact_name'] or '-'}; consented {now()}",
+        phone=data["phone"] or None, email=data["email"].lower(), source="inbound" if inbound else "referral",
+        source_id=f"{'in' if inbound else 'ref'}:{data['email'].lower()}",
+        referred_by=None if inbound else referrer["id"],
+        notes=(f"Requested a preview on our website" if inbound else f"Referred by {referrer['business_name']}")
+        + f"; contact: {data['contact_name'] or '-'}; consented {now()}",
     )
-    db.log("referrals", "referral_signup", f"from {referrer['business_name']}", lead_id)
+    db.log("referrals", "inbound_signup" if inbound else "referral_signup",
+           "website form" if inbound else f"from {referrer['business_name']}", lead_id)
     return lead_id
 
 

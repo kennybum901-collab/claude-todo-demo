@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ cfg.company_name }} | Websites for {{ city }} small businesses</title>
+<meta name="description" content="We build your business website first. You only pay if you love it. {{ setup }} setup, {{ monthly }}/month for hosting and care.">
+<style>
+  :root { --brand: #15803d; --brand-dark: #166534; --ink: #14231a; --muted: #4f6656; --soft: #f1f7f2; --line: #dfe9e2; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--ink); line-height: 1.6; background: #fff; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+  a { color: var(--brand-dark); }
+  header { padding: 16px 0; border-bottom: 1px solid var(--line); background: #fff; position: sticky; top: 0; z-index: 5; }
+  header .wrap { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .logo { font-weight: 800; font-size: 1.3rem; color: var(--ink); text-decoration: none; }
+  .logo span { color: var(--brand); }
+  nav a { margin-left: 18px; text-decoration: none; color: var(--muted); font-weight: 600; }
+  .btn { display: inline-block; background: var(--brand); color: #fff; padding: 13px 24px; border-radius: 999px; text-decoration: none; font-weight: 700; border: 0; font: inherit; font-weight: 700; cursor: pointer; }
+  .btn:hover { background: var(--brand-dark); }
+  .btn.ghost { background: transparent; color: var(--brand-dark); border: 2px solid var(--brand); }
+  .btn:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
+  .hero { padding: 80px 0 72px; background: linear-gradient(180deg, var(--soft), #fff); }
+  .hero h1 { font-size: clamp(2.1rem, 5.5vw, 3.5rem); line-height: 1.1; margin: 0 0 16px; max-width: 800px; }
+  .hero p { font-size: 1.2rem; color: var(--muted); max-width: 640px; margin: 0 0 28px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+  section { padding: 64px 0; }
+  h2 { font-size: 2rem; margin: 0 0 8px; }
+  .lead { color: var(--muted); margin: 0 0 32px; max-width: 640px; }
+  .steps, .examples, .addons { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .step, .example, .addon { background: var(--soft); border-radius: 16px; padding: 24px; }
+  .step b { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--brand); color: #fff; margin-bottom: 10px; }
+  .step h3, .example h3, .addon h3 { margin: 0 0 6px; }
+  .swatch { height: 90px; border-radius: 10px; margin-bottom: 14px; }
+  .pricing { display: grid; gap: 24px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); align-items: start; }
+  .plan { border: 2px solid var(--brand); border-radius: 18px; padding: 28px; }
+  .price { font-size: 2.6rem; font-weight: 800; line-height: 1; }
+  .price small { font-size: 1rem; font-weight: 600; color: var(--muted); }
+  .plan ul, .includes { padding-left: 20px; margin: 16px 0; }
+  .plan li, .includes li { margin: 6px 0; }
+  details { border-bottom: 1px solid var(--line); padding: 14px 0; }
+  summary { font-weight: 700; cursor: pointer; }
+  .get { background: var(--ink); color: #fff; }
+  .get .lead { color: #c9d6cd; }
+  .get form { display: grid; gap: 12px; max-width: 560px; }
+  .get label { font-weight: 600; }
+  .get input, .get select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #c9d6cd; font: inherit; }
+  .get .consent { font-weight: 400; display: flex; gap: 10px; align-items: flex-start; }
+  .get .consent input { width: auto; margin-top: 5px; }
+  .hp { position: absolute; left: -9999px; height: 0; overflow: hidden; }
+  footer { padding: 28px 0; color: var(--muted); font-size: .9rem; border-top: 1px solid var(--line); }
+  @media (max-width: 560px) { nav a:not(.btn) { display: none; } }
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <a class="logo" href="#">{{ name_head }}<span>{{ name_tail }}</span></a>
+  <nav><a href="#how">How it works</a><a href="#examples">Examples</a><a href="#pricing">Pricing</a><a class="btn" href="#get">Free preview</a></nav>
+</div></header>
+
+<div class="hero"><div class="wrap">
+  <h1>Your business deserves a website that brings in calls.</h1>
+  <p>We build websites for {{ niches_text }} in {{ city }}. We build yours <strong>first, for free</strong>. You only pay if you love it.</p>
+  <div class="actions"><a class="btn" href="#get">Get my free preview</a><a class="btn ghost" href="#examples">See example designs</a></div>
+</div></div>
+
+<section id="how"><div class="wrap">
+  <h2>How it works</h2>
+  <p class="lead">No meetings, no forms to fill in, no risk.</p>
+  <div class="steps">
+    <div class="step"><b>1</b><h3>We build a preview</h3><p>Tell us your business name and we'll build a real, working website for you within a day or two.</p></div>
+    <div class="step"><b>2</b><h3>You look it over</h3><p>Ask for any changes: photos, wording, hours, services. We update the preview until it's right.</p></div>
+    <div class="step"><b>3</b><h3>We put it live</h3><p>Happy with it? It goes live on your own domain, and we keep it fast, secure and up to date.</p></div>
+  </div>
+</div></section>
+
+<section id="examples" style="background:var(--soft)"><div class="wrap">
+  <h2>Example designs</h2>
+  <p class="lead">Each design is matched to the kind of business. These are samples for made-up businesses, so tap one to see a full site.</p>
+  <div class="examples">
+  {% for ex in examples %}
+    <a class="example" href="{{ ex.href }}" style="background:#fff;text-decoration:none;color:inherit">
+      <div class="swatch" style="background:{{ ex.preview_css }}"></div>
+      <h3>{{ ex.title }}</h3><p style="margin:0;color:var(--muted)">{{ ex.blurb }}</p>
+      <p style="margin:10px 0 0;font-weight:700;color:var(--brand-dark)">View example →</p>
+    </a>
+  {% endfor %}
+  </div>
+</div></section>
+
+<section id="pricing"><div class="wrap">
+  <h2>Simple pricing</h2>
+  <p class="lead">One plan. No contracts. Cancel anytime.</p>
+  <div class="pricing">
+    <div class="plan">
+      <div class="price">{{ setup }} <small>one-time setup</small></div>
+      <div class="price" style="font-size:1.8rem;margin-top:10px">+ {{ monthly }} <small>/ month</small></div>
+      <ul>
+        <li>A custom website built around your business</li>
+        <li>Works on phones, with tap-to-call</li>
+        <li>"Get a free quote" form that emails you every request</li>
+        <li>Hosting, security certificate and updates included</li>
+        <li>Small edits whenever you need them: just reply to an email</li>
+        <li>A monthly report: uptime, quote requests, work done</li>
+      </ul>
+      <a class="btn" href="#get">Start with a free preview</a>
+    </div>
+    <div>
+      <h3 style="margin-top:0">Optional add-ons</h3>
+      <div class="addons">
+      {% for a in addons %}
+        <div class="addon"><h3>{{ a.name }} <span style="color:var(--muted);font-weight:600">{{ a.price }}/mo</span></h3><p style="margin:0">{{ a.pitch }}</p></div>
+      {% endfor %}
+      </div>
+    </div>
+  </div>
+</div></section>
+
+<section id="faq" style="background:var(--soft)"><div class="wrap">
+  <h2>Questions</h2>
+  <details><summary>Is the preview really free?</summary><p>Yes. We build it before you pay anything. If you don't love it, you owe nothing.</p></details>
+  <details><summary>Can I cancel?</summary><p>Anytime, no contract. The monthly plan covers hosting and care, so the site goes offline when the plan ends.</p></details>
+  <details><summary>Can I use my own domain?</summary><p>Yes. We connect a domain you already own, or help you get one.</p></details>
+  <details><summary>How do I change something on my site?</summary><p>Reply to any of our emails with what you'd like changed (new hours, prices, photos) and we'll update it, usually within a day.</p></details>
+  <details><summary>Do you only work in {{ city }}?</summary><p>We focus on {{ city }} so we know the area, but we're happy to talk if you're nearby.</p></details>
+</div></section>
+
+<section id="get" class="get"><div class="wrap">
+  <h2>Get your free preview</h2>
+  <p class="lead">Tell us about your business. We'll email you a link to your preview website.</p>
+  {% if form_action %}
+  <form method="post" action="{{ form_action }}">
+    <label>Business name<input name="business_name" required maxlength="120"></label>
+    <label>Your name<input name="contact_name" maxlength="100" autocomplete="name"></label>
+    <label>Email<input name="email" type="email" required maxlength="200" autocomplete="email"></label>
+    <label>Phone<input name="phone" type="tel" maxlength="40" autocomplete="tel"></label>
+    <label>Type of business<input name="niche" maxlength="80" list="niches" placeholder="e.g. roofer, hair salon"></label>
+    <datalist id="niches">{% for n in niche_list %}<option value="{{ n }}">{% endfor %}</datalist>
+    <input type="hidden" name="city" value="{{ city }}">
+    <div class="hp" aria-hidden="true"><input name="website" tabindex="-1" autocomplete="off"></div>
+    <label class="consent"><input type="checkbox" name="consent" required> It's OK for {{ cfg.company_name }} to email me about my free preview.</label>
+    <button class="btn" type="submit">Get my free preview</button>
+  </form>
+  {% else %}
+  <p>Email us at <a style="color:#fff" href="mailto:{{ cfg.company_email }}?subject=Free%20website%20preview">{{ cfg.company_email }}</a> with your business name and we'll build your preview.</p>
+  {% endif %}
+</div></section>
+
+<footer><div class="wrap">
+  © {{ year }} {{ cfg.company_name }} · {{ cfg.company_address }} · <a href="mailto:{{ cfg.company_email }}">{{ cfg.company_email }}</a>
+</div></footer>
+</body>
+</html>
