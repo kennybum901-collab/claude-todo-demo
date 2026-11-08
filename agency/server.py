@@ -30,6 +30,7 @@ from .bots.winback_bot import WinbackBot
 from .config import Config
 from .db import DB, now
 from .orchestrator import Orchestrator
+from .digest import verify_control
 from .quotes import QuoteError, submit as submit_quote, verify as verify_quote
 from .unsubscribe import verify as verify_unsubscribe
 
@@ -241,6 +242,18 @@ def make_handler(cfg: Config):
                     "SELECT MAX(created_at) FROM events WHERE kind = 'heartbeat'").fetchone()[0]
                 self._send(200, json.dumps({"ok": True, "dry_run": cfg.dry_run, "last_event": last,
                                             "last_heartbeat": beat}), "application/json")
+            elif u.path in ("/control/pause", "/control/resume"):
+                action = u.path.rsplit("/", 1)[1]
+                tok = parse_qs(u.query).get("t", [""])[0]
+                if not verify_control(action, tok, cfg.app_secret):
+                    return self._send(404, PAGE.format(title="Not found", body="<p>Not found.</p>"))
+                verb = "Pause all marketing email" if action == "pause" else "Resume marketing email"
+                # GET only confirms (link scanners prefetch); the button POSTs
+                return self._send(200, PAGE.format(title=verb, body=(
+                    f"<h1>{verb}?</h1><p>Outreach, offers, win-back and reports "
+                    f"{'stop until you resume' if action == 'pause' else 'start again'}. "
+                    "Quote forwarding and client notices keep working.</p>"
+                    f"<form method='post'><button type='submit'>{verb}</button></form>")))
             elif u.path in ("/admin", "/admin/"):
                 if not cfg.admin_password:
                     return self._send(404, PAGE.format(title="Not found", body="<p>Not found.</p>"))
@@ -273,6 +286,16 @@ def make_handler(cfg: Config):
             u = urlparse(self.path)
             length = min(int(self.headers.get("Content-Length") or 0), 1_000_000)
             body = self.rfile.read(length)
+            if u.path in ("/control/pause", "/control/resume"):
+                action = u.path.rsplit("/", 1)[1]
+                if not verify_control(action, parse_qs(u.query).get("t", [""])[0], cfg.app_secret):
+                    return self._send(404, PAGE.format(title="Not found", body="<p>Not found.</p>"))
+                db = self._db()
+                db.set_setting("sending_paused", "1" if action == "pause" else None)
+                db.log("control", action, "one-click link")
+                state = "paused" if action == "pause" else "resumed"
+                return self._send(200, PAGE.format(title=f"Sending {state}", body=(
+                    f"<h1>Marketing email {state}</h1><p>Takes effect on the bots' next run.</p>")))
             if u.path.startswith("/quote/"):
                 return self._quote(u.path, body)
             if u.path == "/stripe/webhook":

@@ -113,6 +113,20 @@ CREATE TABLE IF NOT EXISTS winbacks (
     recovered_at    TEXT,
     UNIQUE (lead_id, audience, step)
 );
+CREATE TABLE IF NOT EXISTS settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT
+);
+CREATE TABLE IF NOT EXISTS messages (           -- copy of every email the bots send (audit + daily digest)
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    lead_id    INTEGER,
+    bot        TEXT NOT NULL,
+    kind       TEXT NOT NULL,
+    to_addr    TEXT,
+    subject    TEXT,
+    body       TEXT,
+    created_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS reports (
     lead_id  INTEGER NOT NULL,
     period   TEXT NOT NULL,          -- YYYY-MM the report covers
@@ -221,6 +235,22 @@ class DB:
             (today,),
         ).fetchone()
         return row[0]
+
+    # ---------- settings (kill switch, digest bookkeeping) ----------
+    def get_setting(self, key: str, default: str | None = None) -> str | None:
+        row = self.conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+        return row[0] if row else default
+
+    def set_setting(self, key: str, value: str | None) -> None:
+        with self.tx() as c:
+            if value is None:
+                c.execute("DELETE FROM settings WHERE key = ?", (key,))
+            else:
+                c.execute("INSERT INTO settings (key, value) VALUES (?, ?) "
+                          "ON CONFLICT(key) DO UPDATE SET value = excluded.value", (key, value))
+
+    def sending_paused(self) -> bool:
+        return self.get_setting("sending_paused") == "1"
 
     # ---------- suppression (unsubscribes / bounces) ----------
     def suppress(self, email: str, reason: str) -> None:

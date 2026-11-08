@@ -3,6 +3,7 @@ tags: agency/playbook
 ---
 # ☀️ Daily Routine (≈30 min)
 
+0. Read the **daily review email**: fix anything under ⚠️, skim the sample emails and sites. If something's badly off, hit **pause**.
 1. Open [[Dashboard]] and check **🔥 Replies waiting for you**. Each lead note has a suggested answer; edit it and send it personally ([[Playbooks/Closing a Reply]]).
 2. Check **✏️ Site edits waiting for your approval**. Open each note, check the before/after table, set `approve: true`. ⚠️ ones need a manual touch.
    Then check **💳 Payment problems**. Call those clients today; a failing card is the #1 cause of churn.

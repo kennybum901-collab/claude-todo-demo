@@ -87,6 +87,10 @@ class Config:
     # --- 24/7 supervisor (python -m agency supervise) ---
     alert_webhook_url: str = os.environ.get("ALERT_WEBHOOK_URL", "")   # Slack / Discord / ntfy.sh
     alert_email: str = os.environ.get("ALERT_EMAIL", "")
+    digest_enabled: bool = _bool("DIGEST_ENABLED", True)
+    digest_email: str = os.environ.get("DIGEST_EMAIL", "")
+    digest_hour: int = _int("DIGEST_HOUR", 13)        # UTC; 13 = 8am US Central / 2pm UK
+    digest_sample: int = _int("DIGEST_SAMPLE", 5)     # emails shown word for word
     backup_keep_days: int = _int("BACKUP_KEEP_DAYS", 14)
     log_dir: Path = Path(os.environ.get("LOG_DIR") or ROOT / "data" / "logs")
     min_free_disk_mb: int = _int("MIN_FREE_DISK_MB", 500)

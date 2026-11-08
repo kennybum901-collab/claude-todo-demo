@@ -98,7 +98,7 @@ class Alerter:
 
         db = DB(self.cfg.db_path)
         mailer = Mailer(db, self.cfg)
-        sender = mailer.notify_sender()
+        sender = mailer.notify_sender(to_owner=True)
         if sender is None:
             return
         msg = EmailMessage()
@@ -106,7 +106,7 @@ class Alerter:
         msg["To"] = self.cfg.alert_email
         msg.set_content(text + "\n")
         try:
-            mailer.send(sender, msg, bot="supervisor", lead_id=None, detail="alert", kind="notify")
+            mailer.send(sender, msg, bot="supervisor", lead_id=None, detail="alert", to_owner=True)
         finally:
             mailer.close()
 

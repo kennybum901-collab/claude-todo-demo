@@ -32,6 +32,11 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("supervise", help="24/7 mode: run `serve`, auto-restart on crash/hang, alerts, daily backups")
     sub.add_parser("backup", help="back up the database now")
     sub.add_parser("dashboard", help="write the performance dashboard to data/dashboard.html")
+    dg = sub.add_parser("digest", help="send today's review email now (or --print it)")
+    dg.add_argument("--print", action="store_true", dest="print_only")
+    sub.add_parser("pause", help="KILL SWITCH: stop all marketing email (outreach, offers, reports)")
+    sub.add_parser("resume", help="resume marketing email after `pause`")
+    sub.add_parser("qa", help="run quality checks on recent sites and emails")
     sub.add_parser("report", help="show pipeline + revenue metrics")
     tl = sub.add_parser("top-leads", help="show the highest-scoring leads not yet emailed")
     tl.add_argument("-n", type=int, default=15)
@@ -82,6 +87,31 @@ def main(argv: list[str] | None = None) -> int:
         out = config.db_path.parent / "dashboard.html"
         out.write_text(render(Analytics(db, config).snapshot(), config.company_name), encoding="utf-8")
         print(f"dashboard written to {out}")
+    elif args.cmd == "digest":
+        from .digest import Digest
+        d = Digest(db, config)
+        if args.print_only:
+            msg, n = d.compose()
+            print(f"To: {msg['To']}\nSubject: {msg['Subject']}\n")
+            print(msg.get_body(("plain",)).get_content())
+        else:
+            print("sent" if d.send(force=True) else "not sent: no inbox can send (check SMTP_* / senders.json)")
+    elif args.cmd in ("pause", "resume"):
+        db.set_setting("sending_paused", "1" if args.cmd == "pause" else None)
+        db.log("control", args.cmd, "cli")
+        print("marketing email PAUSED" if args.cmd == "pause" else "marketing email resumed")
+    elif args.cmd == "qa":
+        from .qa import check_email, check_site
+        bad = 0
+        for lead in db.conn.execute("SELECT * FROM leads WHERE site_slug IS NOT NULL ORDER BY id DESC LIMIT 25"):
+            for p in check_site(lead, config):
+                bad += 1
+                print(f"site  #{lead['id']} {lead['business_name']}: {p}")
+        for m in db.conn.execute("SELECT * FROM messages ORDER BY id DESC LIMIT 50"):
+            for p in check_email(m["subject"], m["body"], config, bot=m["bot"]):
+                bad += 1
+                print(f"email #{m['id']} to {m['to_addr']}: {p}")
+        print("all checks passed" if not bad else f"{bad} problem(s)")
     elif args.cmd == "import-csv":
         print(f"imported {LeadBot(db, config).import_csv(args.path)} leads")
     elif args.cmd == "report":

@@ -7,7 +7,8 @@ tags: agency/playbook
 - [ ] `.env`: real company name, **postal address**, email, URL
 - [ ] 2–3 secondary sending domains with SPF/DKIM/DMARC, one or two inboxes each, listed in `senders.json` with a `warmup_start` date
 - [ ] `GOOGLE_PLACES_API_KEY`, `NETLIFY_TOKEN`, `STRIPE_SECRET_KEY` (test key first), `SMTP_*`, `IMAP_HOST`
-- [ ] Ran in `DRY_RUN=1`, read 10 generated sites and `preview-email` outputs
+- [ ] Ran in `DRY_RUN=1` for a few days and read the **daily review email** (sample emails + attached sites) until it's consistently ✅
+- [ ] Know where the **pause** link is (in every daily review) in case anything goes wrong after launch
 - [ ] Targeting US businesses (CAN-SPAM). EU/UK/Canada need consent first.
 - [ ] Simple service agreement and refund policy written
 - [ ] VPS + domain for the bots (e.g. `bots.yourstudio.com`), `docker compose up -d --build`

@@ -33,6 +33,7 @@ See **[vault/Business Plan.md](vault/Business%20Plan.md)** for the offer, pricin
 | Win-back bot | `agency/bots/winback_bot.py` | Second chance with the setup fee waived: 2 emails to cancelled clients (day 30 and 60), 1 final email to silent prospects (day 90); a purchase relaunches the site |
 | Analytics | `agency/analytics.py`, `agency/dashboard.py` | MRR history (base + add-ons), funnel, results by niche and city, revenue per client, churn, lifetime value, plus recommendations: an interactive page at `/admin` and `vault/Performance.md` |
 | Lead scoring | `agency/scoring.py` | 0–100 likelihood-to-buy score from your own close rates by niche and city (smoothed) plus rating and review count; orders site building, outreach and the call list |
+| Daily review | `agency/digest.py`, `agency/qa.py` | Morning email to you: yesterday's numbers, sample emails word for word, newest sites attached, automatic quality checks, one-click pause |
 | Orchestrator | `agency/orchestrator.py` | Runs everything in order; one failing bot never stops the rest |
 
 ## Quick start (safe: dry-run)
@@ -63,6 +64,23 @@ python -m agency daemon --every 60          # or cron: 0 * * * * cd /app && pyth
 ```
 
 The outreach bot refuses to email anyone until that lead has a real `https://` preview and a real Stripe link.
+
+## Daily review & kill switch
+
+Once a day after `DIGEST_HOUR` (UTC) you get one email at `DIGEST_EMAIL` (falls back to `ALERT_EMAIL`, then `COMPANY_EMAIL`):
+
+- **Needs a look:** anything the automatic quality checks flagged, plus bot errors. The subject starts with ⚠️ when there's something.
+- **Last 24 hours:** leads, sites, emails, replies, opt-outs and bounces, new clients, add-ons, quote requests, cancellations, errors.
+- **Sample of emails sent:** up to `DIGEST_SAMPLE` real emails, word for word, at least one of each kind (outreach, offer, report…), each with its check result.
+- **Newest sites:** attached as HTML files you can open on your phone.
+
+**It is sent even in `DRY_RUN`**, so you can review exactly what the bots *would* send before going live. Only this email to you goes out.
+
+**Quality checks** (`python -m agency qa` runs them on demand):
+- Sites: business name present, no leftover template text, tap-to-call phone link, title and phone viewport, page size, live URL returns 200.
+- Emails: subject length and capitals, `!!`, leftover template text, CAN-SPAM postal address and opt-out, spam-trigger phrases, no `file://` links when live.
+
+**Kill switch:** the digest has a one-click **pause** link (signed, and it asks for confirmation first). `python -m agency pause` / `resume` do the same. While paused, outreach, offers, win-back and reports stop. Quote forwarding, edit confirmations and alerts keep working. Every email the bots send is archived for 90 days in the `messages` table.
 
 ## Running 24/7
 

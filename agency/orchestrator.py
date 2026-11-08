@@ -21,6 +21,7 @@ from .bots.upsell_bot import UpsellBot
 from .bots.winback_bot import WinbackBot
 from .config import Config
 from .db import DB
+from .digest import Digest
 from .edits import EditBot
 from .mailer import Mailer
 from .obsidian import ObsidianSync
@@ -90,6 +91,7 @@ class Orchestrator:
             "down": self._step("monitor", self.monitor.run),
             "previews_removed": self._step("cleanup", self.deployer.cleanup),
         }
+        summary["digest"] = self._step("digest", Digest(self.db, self.cfg, mailer=self.mailer).send)
         if self.cfg.obsidian_enabled:
             summary["obsidian_notes"] = self._step("obsidian>", self.obsidian.push)
         summary["metrics"] = self.db.metrics(self.cfg.monthly_fee_cents)

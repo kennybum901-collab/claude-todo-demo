@@ -130,7 +130,7 @@ class Mailer:
         return sends >= BOUNCE_MIN_SENDS and rate > self.cfg.bounce_pause_rate
 
     def remaining(self, sender: Sender) -> int:
-        if self.is_paused(sender):
+        if self.is_paused(sender) or self.db.sending_paused():  # kill switch stops all marketing
             return 0
         if self.live and not sender.can_send_live:
             return 0
@@ -153,19 +153,23 @@ class Mailer:
         return max(candidates, key=lambda c: c[0])[1]
 
     # ---------- sending ----------
-    def notify_sender(self) -> Sender | None:
+    def notify_sender(self, to_owner: bool = False) -> Sender | None:
         """Inbox for transactional notices (e.g. forwarding a quote to a client).
-        These ignore the cold-email daily cap but never use a paused inbox."""
+        These ignore the cold-email daily cap but never use a paused inbox.
+        to_owner=True (digest, alerts) prefers an inbox that can really send,
+        even in DRY_RUN, because those emails only ever go to you."""
         healthy = [s for s in self.senders if not self.is_paused(s)]
-        if self.live:
-            healthy = [s for s in healthy if s.can_send_live]
+        if self.live or to_owner:
+            real = [s for s in healthy if s.can_send_live]
+            healthy = real if (real or not to_owner) else healthy
         return healthy[0] if healthy else None
 
-    def send(self, sender: Sender, msg: EmailMessage, *, bot: str, lead_id: int, detail: str,
-             kind: str | None = None) -> None:
+    def send(self, sender: Sender, msg: EmailMessage, *, bot: str, lead_id: int | None, detail: str,
+             kind: str | None = None, to_owner: bool = False) -> None:
         """kind=None: marketing email (counts toward caps, gets unsubscribe headers).
-        kind="notify": transactional notice (no cap, keeps Reply-To)."""
-        transactional = kind == "notify"
+        kind="notify": transactional notice (no cap, keeps Reply-To).
+        to_owner=True: an email to the business owner (you) - delivered even in DRY_RUN."""
+        transactional = kind == "notify" or to_owner
         for h in ("From", "List-Unsubscribe", "List-Unsubscribe-Post"):
             del msg[h]
         if not transactional:
@@ -174,7 +178,7 @@ class Mailer:
         if not transactional:
             for k, v in unsubscribe_headers(msg["To"], sender.email, self.cfg).items():
                 msg[k] = v
-        live = self.live and sender.can_send_live
+        live = (self.live or to_owner) and sender.can_send_live
         if live:
             conn = self._conns.get(sender.email)
             if conn is None:
@@ -186,6 +190,19 @@ class Mailer:
             conn.send_message(msg)
         logged = ("notify" if live else "dry_notify") if transactional else ("sent" if live else "dry_send")
         self.db.log(bot, logged, detail, lead_id, sender=sender.email.lower())
+        if not to_owner:
+            self._keep_copy(msg, bot, logged, lead_id)
+
+    def _keep_copy(self, msg: EmailMessage, bot: str, kind: str, lead_id: int | None) -> None:
+        try:
+            body = msg.get_content() if not msg.is_multipart() else msg.get_body(("plain",)).get_content()
+        except (KeyError, AttributeError, LookupError):
+            body = ""
+        with self.db.tx() as c:
+            c.execute("INSERT INTO messages (lead_id, bot, kind, to_addr, subject, body, created_at) "
+                      "VALUES (?,?,?,?,?,?,?)",
+                      (lead_id, bot, kind, msg["To"], msg["Subject"], body[:8000],
+                       datetime.now(timezone.utc).isoformat(timespec="seconds")))
 
     def close(self) -> None:
         for conn in self._conns.values():
