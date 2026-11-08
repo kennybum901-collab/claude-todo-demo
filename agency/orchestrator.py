@@ -1,7 +1,8 @@
 """Runs the whole business pipeline, once or forever on a schedule.
 
     find leads -> payment links -> build sites -> deploy previews -> email
-    -> read replies -> detect payments -> publish final site -> monitor clients
+    -> read replies -> detect payments -> publish final site -> upsell add-ons
+    -> monitor clients
     -> sync everything into the Obsidian vault (CRM notes, dashboard, daily log)
 """
 from __future__ import annotations
@@ -15,6 +16,7 @@ from .bots.deploy_bot import DeployBot
 from .bots.lead_bot import LeadBot
 from .bots.monitor_bot import MonitorBot
 from .bots.outreach_bot import OutreachBot
+from .bots.upsell_bot import UpsellBot
 from .config import Config
 from .db import DB
 from .obsidian import ObsidianSync
@@ -31,6 +33,7 @@ class Orchestrator:
         self.deployer = DeployBot(db, cfg)
         self.outreach = OutreachBot(db, cfg)
         self.monitor = MonitorBot(db, cfg)
+        self.upsell = UpsellBot(db, cfg)
         self.obsidian = ObsidianSync(db, cfg)
 
     def onboard_paid_clients(self) -> int:
@@ -68,6 +71,7 @@ class Orchestrator:
             "paid": self._step("payments", self.billing.check_payments),
             "subscriptions": self._step("subs", self.billing.check_subscriptions),
             "onboarded": self._step("onboard", self.onboard_paid_clients),
+            "upsell": self._step("upsell", self.upsell.run) if self.cfg.upsell_enabled else None,
             "down": self._step("monitor", self.monitor.run),
             "previews_removed": self._step("cleanup", self.deployer.cleanup),
         }

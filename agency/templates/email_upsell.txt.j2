@@ -1,0 +1,21 @@
+Subject: {{ addon.name }} for {{ lead.business_name }}?
+Hi {{ lead.business_name }} team,
+
+Hope the new website has been working well for you!
+
+One thing a lot of {{ lead.niche or "local business" }}es add next: {{ addon.name }}.
+{{ addon.pitch }}
+
+{% for b in addon.bullets %}  - {{ b }}
+{% endfor %}
+It's {{ price }}/month on top of your current plan, set up for you, cancel anytime.
+
+Add it here: {{ payment_url }}
+Or just reply with any questions.
+
+{{ cfg.owner_name }}
+{{ cfg.company_name }} | {{ cfg.company_url }}
+
+--
+{{ cfg.company_name }}, {{ cfg.company_address }}
+Prefer not to get offers like this? Reply "STOP".

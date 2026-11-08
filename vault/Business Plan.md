@@ -13,7 +13,7 @@ Many local service businesses (plumbers, roofers, salons, landscapers, cleaners)
 |---|---|---|
 | Website setup | **$499 one-time** | Custom domain, branding tweaks, Google Business link |
 | Hosting & care plan | **$49/month** | Hosting, SSL, uptime monitoring, small edits each month |
-| Upsells (later) | $99–$300/mo | Local SEO, review-request automation, booking widget, ads management |
+| Add-ons (automated by the upsell bot) | $79–$199/mo | Online Booking $79, Review Booster $99, Local SEO $199. Offered from day 60 |
 
 The monthly plan is the business. One-time setup fees pay for acquiring the customer. Recurring revenue is what gives the company its value.
 

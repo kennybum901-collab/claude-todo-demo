@@ -21,6 +21,7 @@ See **[vault/Business Plan.md](vault/Business%20Plan.md)** for the offer, pricin
 | Deploy bot | `agency/bots/deploy_bot.py` | Publishes each site to Netlify as a live preview URL; takes previews down for opt-outs and dead leads |
 | Billing bot | `agency/bots/billing_bot.py` | Creates a Stripe Payment Link per prospect ($499 setup + $49/mo), detects payments, tracks subscriptions (churn, failing cards) |
 | Outreach bot | `agency/bots/outreach_bot.py` | Personalized email and up to 2 follow-ups, subject-line A/B test, daily cap, opt-out handling, reads replies over IMAP and **drafts an answer** for you |
+| Upsell bot | `agency/bots/upsell_bot.py` | Offers clients niche-matched add-ons (Review Booster $99, Online Booking $79, Local SEO $199/mo) on a schedule, each with its own Stripe link; tracks activations and cancellations |
 | Monitor bot | `agency/bots/monitor_bot.py` | Uptime checks for paying clients |
 | Obsidian sync | `agency/obsidian.py` | Writes one CRM note per lead, a live Dashboard and a daily log into your vault; reads `do_not_contact` flags back |
 | Orchestrator | `agency/orchestrator.py` | Runs everything in order; one failing bot never stops the rest |
@@ -86,6 +87,7 @@ When a prospect replies with anything other than an opt-out, their status become
 - **Subject-line A/B test:** each lead gets one of `SUBJECT_VARIANTS`; `report` and the Dashboard show reply and win rate per variant. Wait for about 100 sends per variant before picking a winner.
 - **Churn tracking:** cancelled Stripe subscriptions become `churned` and drop out of MRR. Failing cards (`past_due`) appear under *Payment problems* so you can call before they cancel.
 - **Preview cleanup:** Netlify previews for `unsubscribed` and `lost` leads are deleted automatically.
+- **Upsells:** 60 days after a client's first payment (`UPSELL_AFTER_DAYS`), they get one add-on offer at a time, at most every 30 days (`UPSELL_GAP_DAYS`). Salons get booking first and trades get reviews first. Each add-on is a separate subscription the client explicitly buys. Add-on MRR shows in `report` and on the Dashboard. Edit `CATALOG` in `agency/bots/upsell_bot.py` to change offers and prices. Activate a deal closed by phone with `python -m agency addon-activate <lead_id> <addon>`. A client who replies STOP stops getting offers but stays a client.
 - **Automatic DB migration:** existing databases get new columns on startup.
 
 ## Tests

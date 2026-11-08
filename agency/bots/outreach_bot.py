@@ -165,6 +165,16 @@ class OutreachBot:
                 fields["reply_draft"] = draft_reply(dict(row), text, self.cfg)
             self.db.update_lead(row["id"], **fields)
             self.db.log(self.name, status, text[:200], row["id"])
+            return status
+        client = self.db.conn.execute(
+            "SELECT * FROM leads WHERE email = ? AND status IN ('client','paid','churned')", (email,)
+        ).fetchone()
+        if client:
+            # existing customer (e.g. answering an add-on offer). Their status stays
+            # the same; an opt-out above only stops future marketing emails.
+            self.db.update_lead(client["id"], last_reply=text[:5000])
+            self.db.log(self.name, "client_reply", text[:200], client["id"])
+            return "client_opt_out" if status == "unsubscribed" else "client_reply"
         return status
 
     def check_inbox(self) -> int:

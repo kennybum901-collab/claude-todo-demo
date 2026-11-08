@@ -132,6 +132,7 @@ class ObsidianSync:
             + f"**{row['niche'] or 'business'}** in {row['city'] or '?'}"
             + (f" · {row['rating']}★ ({row['review_count']} reviews)" if row["rating"] else "")
             + self._reply_section(row)
+            + self._addon_section(row)
             + f"\n\n## Activity\n{timeline}\n\nBack to [[Dashboard]]\n{END}\n"
         )
 
@@ -154,6 +155,18 @@ class ObsidianSync:
             out += ("\n\n## Suggested answer (review, edit, send yourself)\n"
                     f"> [!tip]- Draft\n{self._quote(row['reply_draft'])}")
         return out
+
+    def _addon_section(self, row) -> str:
+        addons = self.db.addons_for(row["id"])
+        if not addons:
+            return ""
+        icon = {"offered": "📨", "active": "✅", "canceled": "❌"}
+        lines = "\n".join(
+            f"- {icon.get(a['status'], '')} **{a['addon']}** ${a['price_cents'] / 100:,.0f}/mo · {a['status']}"
+            + (f" · [link]({a['payment_url']})" if a["payment_url"] and a["status"] == "offered" else "")
+            for a in addons
+        )
+        return f"\n\n## Add-ons\n{lines}"
 
     def write_leads(self) -> int:
         folder = self.vault / "Leads"
@@ -182,6 +195,17 @@ class ObsidianSync:
             "SELECT DISTINCT l.* FROM events e JOIN leads l ON l.id = e.lead_id WHERE e.kind = 'past_due' "
             "AND l.status = 'client' AND substr(e.created_at,1,10) >= date('now','-3 day')"
         ).fetchall()
+        addon_rows = self.db.conn.execute(
+            "SELECT addon, COUNT(*) offered, SUM(status='active') active, "
+            "SUM(CASE WHEN status='active' THEN price_cents ELSE 0 END) mrr FROM addons GROUP BY addon"
+        ).fetchall()
+        addon_table = "\n".join(
+            f"| {r['addon']} | {r['offered']} | {r['active']} | {_money(r['mrr'])} |" for r in addon_rows
+        ) or "| - | 0 | 0 | $0 |"
+        client_msgs = self.db.conn.execute(
+            "SELECT DISTINCT l.* FROM events e JOIN leads l ON l.id = e.lead_id "
+            "WHERE e.kind = 'client_reply' AND substr(e.created_at,1,10) >= date('now','-7 day')"
+        ).fetchall()
         ab = self.db.variant_stats()
         ab_table = "\n".join(
             f"| {v['variant']} | {v['sent']} | {v['replies']} ({v['reply_rate']:.1%}) | {v['wins']} ({v['win_rate']:.1%}) |"
@@ -200,10 +224,13 @@ updated: "{stamp}"
 
 | MRR | Clients | Revenue collected | Close rate | Churn | Emails today |
 |---|---|---|---|---|---|
-| **{_money(m['mrr_cents'])}** | {m['clients']} | {_money(m['revenue_collected_cents'])} | {m['close_rate']:.1%} | {m['churn_rate']:.1%} | {m['emails_today']}/{self.cfg.daily_email_cap} |
+| **{_money(m['mrr_cents'])}**<br>base {_money(m['base_mrr_cents'])} + add-ons {_money(m['addon_mrr_cents'])} | {m['clients']} | {_money(m['revenue_collected_cents'])} | {m['close_rate']:.1%} | {m['churn_rate']:.1%} | {m['emails_today']}/{self.cfg.daily_email_cap} |
 
 ## 🔥 Replies waiting for you
 {chr(10).join(f"- [[{note_name(r)}]] ({r['email']}): " + (r['last_reply'] or '').strip().splitlines()[0][:80] if (r['last_reply'] or '').strip() else f"- [[{note_name(r)}]] ({r['email']})" for r in hot) or "- None right now"}
+
+## 💬 Client messages (last 7 days)
+{chr(10).join(f"- [[{note_name(r)}]]: " + (r['last_reply'] or '').strip().splitlines()[0][:80] for r in client_msgs if (r['last_reply'] or '').strip()) or "- None"}
 
 ## 💳 Payment problems (card failing: call them before they cancel)
 {chr(10).join(f"- [[{note_name(r)}]] · {r['phone'] or r['email']}" for r in at_risk) or "- None"}
@@ -215,6 +242,11 @@ updated: "{stamp}"
 | Stage | Leads |
 |---|---|
 {pipeline}
+
+## 📈 Add-on upsells
+| Add-on | Offered | Active | MRR |
+|---|---|---|---|
+{addon_table}
 
 ## 🧪 Subject line A/B test
 | Variant | Sent | Replies | Wins |

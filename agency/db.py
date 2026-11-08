@@ -62,6 +62,19 @@ CREATE TABLE IF NOT EXISTS payments (
     kind        TEXT NOT NULL,
     created_at  TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS addons (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    lead_id         INTEGER NOT NULL,
+    addon           TEXT NOT NULL,
+    price_cents     INTEGER NOT NULL,
+    status          TEXT NOT NULL DEFAULT 'offered',   -- offered | active | canceled
+    payment_url     TEXT,
+    payment_link_id TEXT,
+    subscription_id TEXT,
+    offered_at      TEXT NOT NULL,
+    activated_at    TEXT,
+    UNIQUE (lead_id, addon)
+);
 CREATE TABLE IF NOT EXISTS uptime (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     lead_id    INTEGER NOT NULL,
@@ -201,13 +214,33 @@ class DB:
         return {
             "pipeline": counts,
             "clients": clients,
-            "mrr_cents": clients * monthly_fee_cents,
+            "mrr_cents": clients * monthly_fee_cents + self.addon_mrr(),
+            "base_mrr_cents": clients * monthly_fee_cents,
+            "addon_mrr_cents": self.addon_mrr(),
             "revenue_collected_cents": revenue,
             "close_rate": ((clients + churned) / contacted) if contacted else 0.0,
             "churned": churned,
             "churn_rate": (churned / (clients + churned)) if (clients + churned) else 0.0,
             "emails_today": self.emails_sent_today(),
         }
+
+    # ---------- add-ons (upsells) ----------
+    def addon_mrr(self) -> int:
+        return self.conn.execute(
+            "SELECT COALESCE(SUM(a.price_cents),0) FROM addons a JOIN leads l ON l.id = a.lead_id "
+            "WHERE a.status = 'active' AND l.status = 'client'"
+        ).fetchone()[0]
+
+    def addons_for(self, lead_id: int) -> list[sqlite3.Row]:
+        return self.conn.execute(
+            "SELECT * FROM addons WHERE lead_id = ? ORDER BY id", (lead_id,)
+        ).fetchall()
+
+    def client_since(self, lead_id: int) -> str | None:
+        row = self.conn.execute(
+            "SELECT MIN(created_at) FROM payments WHERE lead_id = ?", (lead_id,)
+        ).fetchone()
+        return row[0]
 
     def variant_stats(self) -> list[dict[str, Any]]:
         """Reply and close rate per outreach subject-line variant (A/B test)."""

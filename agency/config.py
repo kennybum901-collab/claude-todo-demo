@@ -56,6 +56,9 @@ class Config:
     daily_email_cap: int = _int("DAILY_EMAIL_CAP", 30)
     followup_days: int = _int("FOLLOWUP_DAYS", 4)
     max_followups: int = _int("MAX_FOLLOWUPS", 2)
+    upsell_enabled: bool = _bool("UPSELL_ENABLED", True)
+    upsell_after_days: int = _int("UPSELL_AFTER_DAYS", 60)
+    upsell_gap_days: int = _int("UPSELL_GAP_DAYS", 30)
 
     # --- Storage ---
     db_path: Path = Path(os.environ.get("DB_PATH", ROOT / "data" / "agency.db"))

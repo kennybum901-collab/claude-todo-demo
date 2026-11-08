@@ -16,6 +16,7 @@ Open this folder as a vault in Obsidian (**Open folder as vault → `vault/`**),
 - [[Playbooks/Closing a Reply]]
 - [[Playbooks/Going Live Checklist]]
 - [[Playbooks/Choosing Niches]]
+- [[Playbooks/Delivering Add-ons]]
 
 ## How the bots and Obsidian work together
 | You do in Obsidian | What happens |

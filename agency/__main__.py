@@ -10,6 +10,7 @@ import sys
 from .bots.billing_bot import BillingBot
 from .bots.lead_bot import LeadBot
 from .bots.outreach_bot import OutreachBot
+from .bots.upsell_bot import CATALOG, UpsellBot
 from .config import config
 from .db import DB
 from .obsidian import ObsidianSync
@@ -31,6 +32,9 @@ def main(argv: list[str] | None = None) -> int:
     mp = sub.add_parser("mark-paid", help="record an offline payment (cash/check/Zelle)")
     mp.add_argument("lead_id", type=int)
     mp.add_argument("--amount", type=int, default=None, help="amount in cents")
+    ad = sub.add_parser("addon-activate", help="manually activate an add-on for a client")
+    ad.add_argument("lead_id", type=int)
+    ad.add_argument("addon", choices=[a.key for a in CATALOG])
     sub.add_parser("obsidian-sync", help="write CRM notes + dashboard into the Obsidian vault")
     un = sub.add_parser("unsubscribe", help="add an email to the do-not-contact list")
     un.add_argument("email")
@@ -52,7 +56,8 @@ def main(argv: list[str] | None = None) -> int:
         m = db.metrics(config.monthly_fee_cents)
         print(f"Pipeline:          {m['pipeline']}")
         print(f"Clients:           {m['clients']}")
-        print(f"MRR:               ${m['mrr_cents'] / 100:,.2f}")
+        print(f"MRR:               ${m['mrr_cents'] / 100:,.2f}  "
+              f"(base ${m['base_mrr_cents'] / 100:,.2f} + add-ons ${m['addon_mrr_cents'] / 100:,.2f})")
         print(f"Revenue collected: ${m['revenue_collected_cents'] / 100:,.2f}")
         print(f"Close rate:        {m['close_rate']:.1%}")
         print(f"Churn:             {m['churned']} ({m['churn_rate']:.1%})")
@@ -80,6 +85,9 @@ def main(argv: list[str] | None = None) -> int:
         amount = args.amount or config.setup_fee_cents + config.monthly_fee_cents
         BillingBot(db, config).mark_paid(args.lead_id, f"manual_{args.lead_id}", amount, config.currency)
         print(f"lead {args.lead_id} marked paid; it will go live on the next `run`")
+    elif args.cmd == "addon-activate":
+        ok = UpsellBot(db, config).activate(args.lead_id, args.addon)
+        print(f"{args.addon} {'activated' if ok else 'was already active'} for lead {args.lead_id}")
     elif args.cmd == "obsidian-sync":
         result = ObsidianSync(db, config).run()
         print(f"{result} -> {config.obsidian_vault}")
