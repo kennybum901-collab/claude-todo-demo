@@ -79,3 +79,24 @@ class DeployBot:
             n += 1
         log.info("deploy bot: %d deployed (%s)", n, "live" if self.live else "dry run")
         return n
+
+    def cleanup(self) -> int:
+        """Take down previews for prospects who opted out or never responded, so
+        we don't leave sites up for businesses that said no."""
+        n = 0
+        for row in self.db.leads_by_status("lost", "unsubscribed"):
+            if not row["netlify_site_id"]:
+                continue
+            if self.live:
+                try:
+                    r = self.http.delete(f"{API}/sites/{row['netlify_site_id']}",
+                                         headers=self._headers(), timeout=30)
+                    if r.status_code not in (200, 204, 404):
+                        r.raise_for_status()
+                except requests.RequestException as exc:
+                    self.db.log(self.name, "error", f"teardown: {exc}", row["id"])
+                    continue
+            self.db.update_lead(row["id"], netlify_site_id=None, preview_url=None)
+            self.db.log(self.name, "preview_removed", row["status"], row["id"])
+            n += 1
+        return n

@@ -124,3 +124,71 @@ def generate_copy(lead: dict[str, Any], cfg: Config) -> dict[str, Any]:
         except Exception as exc:  # never let copywriting stall the pipeline
             log.warning("AI copy failed for %s (%s); using template", lead["business_name"], exc)
     return template_copy(lead)
+
+
+# ---------------------------------------------------------------------------
+# Reply drafting: when a prospect answers, prepare a suggested response for the
+# human to review in Obsidian. Drafts are NEVER sent automatically.
+# ---------------------------------------------------------------------------
+REPLY_PROMPT = """You help a small web-design studio answer prospects who replied to an
+email offering them a free preview website. Draft a short, warm, plain-text reply
+(under 120 words) from {owner} at {company}. Answer their actual question. Facts you
+may use: setup is {setup} one-time, care plan is {monthly}/month (hosting, security,
+small edits), cancel anytime, preview: {preview}, payment link: {payment}.
+Do not invent anything else (no discounts, guarantees, timelines or features).
+If they ask for changes, say you will update the preview. Return only the email body.
+
+Their business: {business}
+Their reply:
+<<<
+{reply}
+>>>"""
+
+
+def template_reply(lead: dict[str, Any], reply: str, cfg: Config) -> str:
+    text = reply.lower()
+    setup, monthly = f"${cfg.setup_fee_cents / 100:,.0f}", f"${cfg.monthly_fee_cents / 100:,.0f}"
+    if any(w in text for w in ("price", "cost", "how much", "$", "charge")):
+        middle = (f"It's {setup} one-time to put it on your own domain with any changes you "
+                  f"want, then {monthly}/month for hosting, security and small edits. "
+                  "Cancel anytime.")
+    elif any(w in text for w in ("change", "edit", "photo", "logo", "update", "add")):
+        middle = ("Happy to. Send over the changes (photos, logo, hours, wording) and I'll "
+                  "update the preview so you can see it before deciding.")
+    elif any(w in text for w in ("scam", "catch", "legit", "who are you")):
+        middle = (f"Fair question. I'm {cfg.owner_name}, I run {cfg.company_name}. I build "
+                  "the site first so owners can see exactly what they'd get. No obligation.")
+    else:
+        middle = ("Thanks for getting back to me! Happy to answer any questions or make "
+                  "changes to the preview.")
+    return (f"Hi,\n\n{middle}\n\nPreview: {lead.get('preview_url')}\n"
+            f"When you're ready: {lead.get('payment_url')}\n\n{cfg.owner_name}\n{cfg.company_name}")
+
+
+def draft_reply(lead: dict[str, Any], reply: str, cfg: Config) -> str:
+    if cfg.use_ai_copy:
+        try:
+            import anthropic
+
+            prompt = REPLY_PROMPT.format(
+                owner=cfg.owner_name, company=cfg.company_name,
+                setup=f"${cfg.setup_fee_cents / 100:,.0f}",
+                monthly=f"${cfg.monthly_fee_cents / 100:,.0f}",
+                preview=lead.get("preview_url"), payment=lead.get("payment_url"),
+                business=lead.get("business_name"), reply=reply[:4000],
+            )
+            response = anthropic.Anthropic().beta.messages.create(
+                model=cfg.anthropic_model,
+                max_tokens=2000,
+                betas=["server-side-fallback-2026-07-01"],
+                fallbacks="default",
+                output_config={"effort": "low"},
+                messages=[{"role": "user", "content": prompt}],
+            )
+            if response.stop_reason not in ("refusal", "max_tokens"):
+                text = "".join(b.text for b in response.content if b.type == "text").strip()
+                if text:
+                    return text
+        except Exception as exc:
+            log.warning("AI reply draft failed (%s); using template", exc)
+    return template_reply(lead, reply, cfg)

@@ -66,8 +66,10 @@ class Orchestrator:
             "replies": self._step("inbox", self.outreach.check_inbox),
             "emailed": self._step("outreach", self.outreach.run),
             "paid": self._step("payments", self.billing.check_payments),
+            "subscriptions": self._step("subs", self.billing.check_subscriptions),
             "onboarded": self._step("onboard", self.onboard_paid_clients),
             "down": self._step("monitor", self.monitor.run),
+            "previews_removed": self._step("cleanup", self.deployer.cleanup),
         }
         if self.cfg.obsidian_enabled:
             summary["obsidian_notes"] = self._step("obsidian>", self.obsidian.push)

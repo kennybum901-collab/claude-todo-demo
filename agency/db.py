@@ -1,7 +1,7 @@
 r"""SQLite storage: the single source of truth for the whole pipeline.
 
 Lead lifecycle (``leads.status``):
-    new -> built -> deployed -> contacted -> replied -> client
+    new -> built -> deployed -> contacted -> replied -> paid -> client -> churned
                                          \-> lost / unsubscribed
 """
 from __future__ import annotations
@@ -34,6 +34,10 @@ CREATE TABLE IF NOT EXISTS leads (
     followups_sent  INTEGER NOT NULL DEFAULT 0,
     last_contacted  TEXT,
     notes           TEXT,
+    variant         TEXT,
+    last_reply      TEXT,
+    reply_draft     TEXT,
+    subscription_id TEXT,
     created_at      TEXT NOT NULL,
     updated_at      TEXT NOT NULL
 );
@@ -82,6 +86,18 @@ class DB:
         self.conn = sqlite3.connect(self.path)
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript(SCHEMA)
+        self._migrate()
+
+    # columns added after the first release; ALTER existing databases in place
+    MIGRATIONS = {"variant": "TEXT", "last_reply": "TEXT", "reply_draft": "TEXT",
+                  "subscription_id": "TEXT"}
+
+    def _migrate(self) -> None:
+        have = {r["name"] for r in self.conn.execute("PRAGMA table_info(leads)")}
+        for col, typ in self.MIGRATIONS.items():
+            if col not in have:
+                self.conn.execute(f"ALTER TABLE leads ADD COLUMN {col} {typ}")
+        self.conn.commit()
 
     @contextmanager
     def tx(self) -> Iterator[sqlite3.Connection]:
@@ -179,12 +195,32 @@ class DB:
         }
         revenue = self.conn.execute("SELECT COALESCE(SUM(amount),0) FROM payments").fetchone()[0]
         clients = counts.get("client", 0)
-        contacted = sum(counts.get(s, 0) for s in ("contacted", "replied", "client", "lost"))
+        churned = counts.get("churned", 0)
+        contacted = sum(counts.get(s, 0) for s in
+                        ("contacted", "replied", "paid", "client", "churned", "lost", "unsubscribed"))
         return {
             "pipeline": counts,
             "clients": clients,
             "mrr_cents": clients * monthly_fee_cents,
             "revenue_collected_cents": revenue,
-            "close_rate": (clients / contacted) if contacted else 0.0,
+            "close_rate": ((clients + churned) / contacted) if contacted else 0.0,
+            "churned": churned,
+            "churn_rate": (churned / (clients + churned)) if (clients + churned) else 0.0,
             "emails_today": self.emails_sent_today(),
         }
+
+    def variant_stats(self) -> list[dict[str, Any]]:
+        """Reply and close rate per outreach subject-line variant (A/B test)."""
+        rows = self.conn.execute(
+            """SELECT variant,
+                      COUNT(*) AS sent,
+                      SUM(status IN ('replied','paid','client','churned')) AS replies,
+                      SUM(status IN ('paid','client','churned')) AS wins
+               FROM leads WHERE variant IS NOT NULL GROUP BY variant ORDER BY variant"""
+        ).fetchall()
+        return [
+            {"variant": r["variant"], "sent": r["sent"], "replies": r["replies"], "wins": r["wins"],
+             "reply_rate": r["replies"] / r["sent"] if r["sent"] else 0.0,
+             "win_rate": r["wins"] / r["sent"] if r["sent"] else 0.0}
+            for r in rows
+        ]

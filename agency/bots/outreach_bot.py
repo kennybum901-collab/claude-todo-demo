@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import imaplib
 import logging
+import re
 import smtplib
 from datetime import datetime, timedelta, timezone
 from email import message_from_bytes
@@ -22,11 +23,20 @@ from email.utils import parseaddr
 from jinja2 import Environment, FileSystemLoader
 
 from ..config import Config
+from ..copywriter import draft_reply
 from ..db import DB
 from .builder_bot import TEMPLATES
 
 log = logging.getLogger(__name__)
 STOP_WORDS = ("unsubscribe", "stop", "remove me", "not interested", "no thanks")
+
+# A/B test: each lead is assigned one subject line; `report` shows which wins.
+# Keep them honest - CAN-SPAM bans misleading subject lines.
+SUBJECT_VARIANTS = {
+    "A": "I built a website for {name}",
+    "B": "{name}: your new website (free preview)",
+    "C": "Made {name} a website, take a look?",
+}
 
 
 def money(cents: int) -> str:
@@ -52,8 +62,10 @@ class OutreachBot:
         if copy_path.exists():
             opener = json.loads(copy_path.read_text()).get("email_opener", "")
         tpl = "email_initial.txt.j2" if step == 0 else "email_followup.txt.j2"
+        variant = lead.get("variant") or self.pick_variant(lead)
         body = self.env.get_template(tpl).render(
             lead=lead, cfg=self.cfg, opener=opener, step=step,
+            subject=SUBJECT_VARIANTS[variant].format(name=lead["business_name"]),
             setup=money(self.cfg.setup_fee_cents), monthly=money(self.cfg.monthly_fee_cents),
         )
         subject_line, _, text = body.partition("\n")
@@ -64,6 +76,11 @@ class OutreachBot:
         msg["List-Unsubscribe"] = f"<mailto:{self.cfg.company_email}?subject=unsubscribe>"
         msg.set_content(text.strip() + "\n")
         return msg
+
+    @staticmethod
+    def pick_variant(lead: dict) -> str:
+        keys = sorted(SUBJECT_VARIANTS)
+        return keys[lead["id"] % len(keys)]
 
     def _due(self, lead: dict) -> int | None:
         """Return which step (0 = first email, 1.. = follow-up) is due, or None."""
@@ -112,7 +129,7 @@ class OutreachBot:
                 self.db.log(self.name, "sent" if self.live else "dry_send",
                             f"step {step}: {msg['Subject']}", lead["id"])
                 self.db.update_lead(
-                    lead["id"], status="contacted",
+                    lead["id"], status="contacted", variant=lead.get("variant") or self.pick_variant(lead),
                     followups_sent=step, last_contacted=datetime.now(timezone.utc).isoformat(),
                 )
                 sent += 1
@@ -132,16 +149,21 @@ class OutreachBot:
     def classify_reply(self, sender: str, text: str) -> str:
         email = parseaddr(sender)[1].lower()
         lowered = text.lower()
-        if any(w in lowered for w in STOP_WORDS):
+        if any(re.search(rf"\b{re.escape(w)}\b", lowered) for w in STOP_WORDS):
             self.db.suppress(email, "reply opt-out")
             status = "unsubscribed"
         else:
             status = "replied"
         row = self.db.conn.execute(
-            "SELECT id FROM leads WHERE email = ? AND status IN ('contacted','deployed')", (email,)
+            "SELECT * FROM leads WHERE email = ? AND status IN ('contacted','deployed','replied')",
+            (email,),
         ).fetchone()
         if row:
-            self.db.update_lead(row["id"], status=status)
+            fields = {"status": status, "last_reply": text[:5000]}
+            if status == "replied":
+                # suggested answer for the human; shown in Obsidian, never auto-sent
+                fields["reply_draft"] = draft_reply(dict(row), text, self.cfg)
+            self.db.update_lead(row["id"], **fields)
             self.db.log(self.name, status, text[:200], row["id"])
         return status
 

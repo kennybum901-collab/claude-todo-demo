@@ -55,7 +55,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"MRR:               ${m['mrr_cents'] / 100:,.2f}")
         print(f"Revenue collected: ${m['revenue_collected_cents'] / 100:,.2f}")
         print(f"Close rate:        {m['close_rate']:.1%}")
+        print(f"Churn:             {m['churned']} ({m['churn_rate']:.1%})")
         print(f"Emails today:      {m['emails_today']}/{config.daily_email_cap}")
+        stats = db.variant_stats()
+        if stats:
+            print("\nSubject A/B test:")
+            for v in stats:
+                print(f"  {v['variant']}: {v['sent']:>4} sent  {v['reply_rate']:>6.1%} replied  "
+                      f"{v['win_rate']:>6.1%} won")
     elif args.cmd == "call-list":
         w = csv.writer(sys.stdout)
         w.writerow(["id", "business_name", "phone", "city", "preview_url", "payment_url"])

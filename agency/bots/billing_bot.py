@@ -91,15 +91,49 @@ class BillingBot:
             for s in sessions.get("data", []):
                 if s.get("status") == "complete" and s.get("payment_status") == "paid":
                     self.mark_paid(row["id"], s["id"], s.get("amount_total") or 0,
-                                   s.get("currency") or self.cfg.currency)
+                                   s.get("currency") or self.cfg.currency,
+                                   subscription_id=s.get("subscription"))
                     paid += 1
                     break
         return paid
 
-    def mark_paid(self, lead_id: int, payment_id: str, amount: int, currency: str) -> None:
+    def mark_paid(self, lead_id: int, payment_id: str, amount: int, currency: str,
+                  subscription_id: str | None = None) -> None:
         if self.db.record_payment(payment_id, lead_id, amount, currency, "setup+first_month"):
-            self.db.update_lead(lead_id, status="paid")
+            fields = {"status": "paid"}
+            if subscription_id:
+                fields["subscription_id"] = subscription_id
+            self.db.update_lead(lead_id, **fields)
             self.db.log(self.name, "paid", f"{amount} {currency}", lead_id)
 
+    # Stripe subscription statuses -> what it means for us
+    CHURNED = {"canceled", "unpaid", "incomplete_expired"}
+    AT_RISK = {"past_due", "incomplete", "paused"}
+
+    def check_subscriptions(self) -> dict:
+        """Keep MRR honest: cancelled subscriptions become 'churned'; failing
+        cards are flagged 'past_due' so you can reach out before they cancel."""
+        result = {"churned": 0, "at_risk": 0}
+        if not self.live:
+            return result
+        for row in self.db.leads_by_status("client"):
+            if not row["subscription_id"]:
+                continue
+            try:
+                sub = self._get(f"/subscriptions/{row['subscription_id']}", {})
+            except requests.RequestException as exc:
+                self.db.log(self.name, "error", str(exc), row["id"])
+                continue
+            status = sub.get("status")
+            if status in self.CHURNED:
+                self.db.update_lead(row["id"], status="churned")
+                self.db.log(self.name, "churned", status, row["id"])
+                result["churned"] += 1
+            elif status in self.AT_RISK:
+                self.db.log(self.name, "past_due", status, row["id"])
+                result["at_risk"] += 1
+        return result
+
     def run(self) -> dict:
-        return {"links": self.create_links(), "paid": self.check_payments()}
+        return {"links": self.create_links(), "paid": self.check_payments(),
+                "subscriptions": self.check_subscriptions()}

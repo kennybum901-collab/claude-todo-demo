@@ -27,7 +27,7 @@ START, END = "<!-- AGENCY:START (managed by bots, edits here are overwritten) --
 NOTES_HEADER = "## My notes"
 STATUS_EMOJI = {
     "new": "🆕", "built": "🛠️", "deployed": "🌐", "contacted": "✉️", "replied": "🔥",
-    "paid": "💳", "client": "✅", "lost": "🪦", "unsubscribed": "🚫",
+    "paid": "💳", "client": "✅", "churned": "💔", "lost": "🪦", "unsubscribed": "🚫",
 }
 
 
@@ -96,6 +96,7 @@ class ObsidianSync:
             "preview_url": row["preview_url"],
             "payment_url": row["payment_url"],
             "followups_sent": row["followups_sent"],
+            "subject_variant": row["variant"],
             "last_contacted": (row["last_contacted"] or "")[:10] or None,
             "source": row["source"],
             "do_not_contact": fm_old.get("do_not_contact", "false").lower() == "true"
@@ -118,6 +119,7 @@ class ObsidianSync:
             "paid": "> [!success] Paid: site goes live on the next run.",
             "client": "> [!success] Client: on the care plan.",
             "unsubscribed": "> [!warning] Opted out: never contact again.",
+            "churned": "> [!failure] Churned: subscription ended. Worth a win-back call?",
         }.get(row["status"], "")
         links = " · ".join(
             f"[{label}]({url})" for label, url in
@@ -129,6 +131,7 @@ class ObsidianSync:
             + (f"{links}\n\n" if links else "")
             + f"**{row['niche'] or 'business'}** in {row['city'] or '?'}"
             + (f" · {row['rating']}★ ({row['review_count']} reviews)" if row["rating"] else "")
+            + self._reply_section(row)
             + f"\n\n## Activity\n{timeline}\n\nBack to [[Dashboard]]\n{END}\n"
         )
 
@@ -138,6 +141,19 @@ class ObsidianSync:
             if tail.strip():
                 user_part = "\n" + tail
         return front + "\n" + managed + user_part
+
+    @staticmethod
+    def _quote(text: str) -> str:
+        return "\n".join(f"> {line}" for line in text.strip().splitlines())
+
+    def _reply_section(self, row) -> str:
+        if not row["last_reply"]:
+            return ""
+        out = f"\n\n## Their latest reply\n> [!quote]\n{self._quote(row['last_reply'])}"
+        if row["reply_draft"] and row["status"] == "replied":
+            out += ("\n\n## Suggested answer (review, edit, send yourself)\n"
+                    f"> [!tip]- Draft\n{self._quote(row['reply_draft'])}")
+        return out
 
     def write_leads(self) -> int:
         folder = self.vault / "Leads"
@@ -160,7 +176,17 @@ class ObsidianSync:
             "SELECT u.*, l.business_name, l.id lid FROM uptime u JOIN leads l ON l.id = u.lead_id "
             "WHERE u.id IN (SELECT MAX(id) FROM uptime GROUP BY lead_id) AND u.ok = 0"
         ).fetchall()
-        order = ["new", "built", "deployed", "contacted", "replied", "paid", "client", "lost", "unsubscribed"]
+        order = ["new", "built", "deployed", "contacted", "replied", "paid", "client", "churned",
+                 "lost", "unsubscribed"]
+        at_risk = self.db.conn.execute(
+            "SELECT DISTINCT l.* FROM events e JOIN leads l ON l.id = e.lead_id WHERE e.kind = 'past_due' "
+            "AND l.status = 'client' AND substr(e.created_at,1,10) >= date('now','-3 day')"
+        ).fetchall()
+        ab = self.db.variant_stats()
+        ab_table = "\n".join(
+            f"| {v['variant']} | {v['sent']} | {v['replies']} ({v['reply_rate']:.1%}) | {v['wins']} ({v['win_rate']:.1%}) |"
+            for v in ab
+        ) or "| - | 0 | 0 | 0 |"
         pipeline = "\n".join(
             f"| {STATUS_EMOJI[s]} {s} | {m['pipeline'].get(s, 0)} |" for s in order
         )
@@ -172,12 +198,15 @@ updated: "{stamp}"
 # 📊 {self.cfg.company_name}: Dashboard
 *Auto-updated by the bots · last run {stamp} · {"🧪 DRY RUN" if self.cfg.dry_run else "🟢 LIVE"}*
 
-| MRR | Clients | Revenue collected | Close rate | Emails today |
-|---|---|---|---|---|
-| **{_money(m['mrr_cents'])}** | {m['clients']} | {_money(m['revenue_collected_cents'])} | {m['close_rate']:.1%} | {m['emails_today']}/{self.cfg.daily_email_cap} |
+| MRR | Clients | Revenue collected | Close rate | Churn | Emails today |
+|---|---|---|---|---|---|
+| **{_money(m['mrr_cents'])}** | {m['clients']} | {_money(m['revenue_collected_cents'])} | {m['close_rate']:.1%} | {m['churn_rate']:.1%} | {m['emails_today']}/{self.cfg.daily_email_cap} |
 
 ## 🔥 Replies waiting for you
-{chr(10).join(f"- [[{note_name(r)}]] ({r['email']})" for r in hot) or "- None right now"}
+{chr(10).join(f"- [[{note_name(r)}]] ({r['email']}): " + (r['last_reply'] or '').strip().splitlines()[0][:80] if (r['last_reply'] or '').strip() else f"- [[{note_name(r)}]] ({r['email']})" for r in hot) or "- None right now"}
+
+## 💳 Payment problems (card failing: call them before they cancel)
+{chr(10).join(f"- [[{note_name(r)}]] · {r['phone'] or r['email']}" for r in at_risk) or "- None"}
 
 ## 🚨 Client sites down
 {chr(10).join(f"- [[{note_name(r)}]]: {r['url']} ({r['status']})" for r in down) or "- All client sites up"}
@@ -186,6 +215,13 @@ updated: "{stamp}"
 | Stage | Leads |
 |---|---|
 {pipeline}
+
+## 🧪 Subject line A/B test
+| Variant | Sent | Replies | Wins |
+|---|---|---|---|
+{ab_table}
+
+*Variants are defined in `agency/bots/outreach_bot.py` (`SUBJECT_VARIANTS`). Wait for ~100 sends per variant before declaring a winner.*
 
 ## Recently updated
 {chr(10).join(f"- {STATUS_EMOJI.get(r['status'], '')} [[{note_name(r)}]] · {r['status']}" for r in rows[:15]) or "- No leads yet"}

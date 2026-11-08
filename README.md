@@ -18,9 +18,9 @@ See **[vault/Business Plan.md](vault/Business%20Plan.md)** for the offer, pricin
 |---|---|---|
 | Lead bot | `agency/bots/lead_bot.py` | Google Places API search for businesses **without** a website; CSV import |
 | Builder bot | `agency/bots/builder_bot.py` | Writes copy (Claude, or templates offline) and renders a responsive one-page site with LocalBusiness schema |
-| Deploy bot | `agency/bots/deploy_bot.py` | Publishes each site to Netlify as a live preview URL |
-| Billing bot | `agency/bots/billing_bot.py` | Creates a Stripe Payment Link per prospect ($499 setup + $49/mo), detects payments |
-| Outreach bot | `agency/bots/outreach_bot.py` | Personalized email and up to 2 follow-ups, daily cap, opt-out handling, reads replies over IMAP |
+| Deploy bot | `agency/bots/deploy_bot.py` | Publishes each site to Netlify as a live preview URL; takes previews down for opt-outs and dead leads |
+| Billing bot | `agency/bots/billing_bot.py` | Creates a Stripe Payment Link per prospect ($499 setup + $49/mo), detects payments, tracks subscriptions (churn, failing cards) |
+| Outreach bot | `agency/bots/outreach_bot.py` | Personalized email and up to 2 follow-ups, subject-line A/B test, daily cap, opt-out handling, reads replies over IMAP and **drafts an answer** for you |
 | Monitor bot | `agency/bots/monitor_bot.py` | Uptime checks for paying clients |
 | Obsidian sync | `agency/obsidian.py` | Writes one CRM note per lead, a live Dashboard and a daily log into your vault; reads `do_not_contact` flags back |
 | Orchestrator | `agency/orchestrator.py` | Runs everything in order; one failing bot never stops the rest |
@@ -78,7 +78,15 @@ python -m agency mark-paid 12              # offline payment (cash / check) → 
 python -m agency unsubscribe a@b.com       # do-not-contact, honored forever
 ```
 
-When a prospect replies with anything other than an opt-out, their status becomes `replied`. **That's your cue to answer them personally.** That's where deals close.
+When a prospect replies with anything other than an opt-out, their status becomes `replied` and the bot writes a **suggested answer** into their Obsidian note (Claude if `ANTHROPIC_API_KEY` is set, templates otherwise). Drafts are never sent automatically. Review, edit and send it yourself; that's where deals close.
+
+## Growth & retention features
+
+- **Reply drafts:** each reply shows up on the Dashboard with a ready-to-edit answer in the lead note.
+- **Subject-line A/B test:** each lead gets one of `SUBJECT_VARIANTS`; `report` and the Dashboard show reply and win rate per variant. Wait for about 100 sends per variant before picking a winner.
+- **Churn tracking:** cancelled Stripe subscriptions become `churned` and drop out of MRR. Failing cards (`past_due`) appear under *Payment problems* so you can call before they cancel.
+- **Preview cleanup:** Netlify previews for `unsubscribed` and `lost` leads are deleted automatically.
+- **Automatic DB migration:** existing databases get new columns on startup.
 
 ## Tests
 
