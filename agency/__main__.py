@@ -13,6 +13,7 @@ from .bots.outreach_bot import OutreachBot
 from .bots.upsell_bot import CATALOG, UpsellBot
 from .config import config
 from .db import DB
+from .mailer import Mailer
 from .obsidian import ObsidianSync
 from .orchestrator import Orchestrator
 
@@ -62,6 +63,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Close rate:        {m['close_rate']:.1%}")
         print(f"Churn:             {m['churned']} ({m['churn_rate']:.1%})")
         print(f"Emails today:      {m['emails_today']}/{config.daily_email_cap}")
+        print("\nInboxes:")
+        for i in Mailer(db, config).status():
+            health = "PAUSED" if i["paused"] else "warming" if i["warming"] else "ok"
+            print(f"  {i['email']:<32} {i['sent_today']:>3}/{i['cap_today']:<3} sent  "
+                  f"bounce {i['bounce_rate']:.1%}  {health}")
         stats = db.variant_stats()
         if stats:
             print("\nSubject A/B test:")

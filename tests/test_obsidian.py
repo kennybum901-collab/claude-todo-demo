@@ -14,7 +14,7 @@ from tests.test_pipeline import SAMPLE
 def env(tmp_path):
     cfg = replace(Config(), dry_run=True, use_ai_copy=False, google_places_key="", imap_host="",
                   db_path=tmp_path / "t.db", build_dir=tmp_path / "sites",
-                  obsidian_vault=tmp_path / "vault")
+                  obsidian_vault=tmp_path / "vault", senders_file=tmp_path / "none.json")
     db = DB(cfg.db_path)
     LeadBot(db, cfg).import_csv(SAMPLE)
     return db, cfg

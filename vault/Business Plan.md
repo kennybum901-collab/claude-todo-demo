@@ -48,7 +48,7 @@ To grow, increase the number of inboxes and niches, add phone outreach for phone
 Pick one niche in 1–2 cities. Run in dry-run mode, read every email and site before going live, then send 20–30 emails a day. Reply to every response personally. Target: 10 paying clients.
 
 **Phase 2: Systematize (months 2–6).**
-- Two or three sending domains, each warmed up, each capped around 30/day.
+- Two or three sending domains, each warmed up, each capped around 30/day. The mailer rotates, warms up and auto-pauses inboxes (`senders.json`). 6 inboxes ≈ 180 emails/day.
 - Expand `LEAD_QUERIES` to 5–10 niches × 5–10 cities.
 - Hire a part-time VA to call phone-only leads from `python -m agency call-list` and handle edit requests.
 - Add upsell packages. Target: 50 clients, about $2.5k MRR plus setup fees.

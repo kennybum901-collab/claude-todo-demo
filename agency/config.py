@@ -56,6 +56,9 @@ class Config:
     daily_email_cap: int = _int("DAILY_EMAIL_CAP", 30)
     followup_days: int = _int("FOLLOWUP_DAYS", 4)
     max_followups: int = _int("MAX_FOLLOWUPS", 2)
+    # Multi-inbox sending (see senders.example.json); falls back to SMTP_* below
+    senders_file: Path = Path(os.environ.get("SENDERS_FILE") or ROOT / "senders.json")
+    bounce_pause_rate: float = float(os.environ.get("BOUNCE_PAUSE_RATE", "0.05"))
     upsell_enabled: bool = _bool("UPSELL_ENABLED", True)
     upsell_after_days: int = _int("UPSELL_AFTER_DAYS", 60)
     upsell_gap_days: int = _int("UPSELL_GAP_DAYS", 30)

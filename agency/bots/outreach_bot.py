@@ -14,7 +14,6 @@ from __future__ import annotations
 import imaplib
 import logging
 import re
-import smtplib
 from datetime import datetime, timedelta, timezone
 from email import message_from_bytes
 from email.message import EmailMessage
@@ -25,6 +24,7 @@ from jinja2 import Environment, FileSystemLoader
 from ..config import Config
 from ..copywriter import draft_reply
 from ..db import DB
+from ..mailer import Mailer
 from .builder_bot import TEMPLATES
 
 log = logging.getLogger(__name__)
@@ -46,13 +46,14 @@ def money(cents: int) -> str:
 class OutreachBot:
     name = "outreach"
 
-    def __init__(self, db: DB, cfg: Config):
+    def __init__(self, db: DB, cfg: Config, mailer: Mailer | None = None):
         self.db, self.cfg = db, cfg
+        self.mailer = mailer or Mailer(db, cfg)
         self.env = Environment(loader=FileSystemLoader(TEMPLATES), autoescape=False)
 
     @property
     def live(self) -> bool:
-        return not self.cfg.dry_run and bool(self.cfg.smtp_host)
+        return self.mailer.live
 
     def compose(self, lead: dict, step: int) -> EmailMessage:
         import json
@@ -93,16 +94,12 @@ class OutreachBot:
         return None
 
     def run(self) -> int:
-        budget = self.cfg.daily_email_cap - self.db.emails_sent_today()
-        if budget <= 0:
-            log.info("outreach bot: daily cap reached")
+        if self.mailer.total_remaining() <= 0:
+            log.info("outreach bot: no inbox has capacity left today")
             return 0
         sent = 0
-        smtp = None
         try:
             for row in self.db.leads_by_status("deployed", "contacted"):
-                if sent >= budget:
-                    break
                 lead = dict(row)
                 if not lead["email"]:
                     continue  # phone-only lead -> appears in `call-list`
@@ -119,23 +116,22 @@ class OutreachBot:
                     # never email a prospect a local file path or a fake checkout link
                     self.db.log(self.name, "skipped", "needs live preview + payment link", lead["id"])
                     continue
+                sender = self.mailer.pick(lead)
+                if sender is None:
+                    if self.mailer.total_remaining() <= 0:
+                        break
+                    continue  # this lead's inbox is full today; others may still send
                 msg = self.compose(lead, step)
-                if self.live:
-                    if smtp is None:
-                        smtp = smtplib.SMTP(self.cfg.smtp_host, self.cfg.smtp_port, timeout=30)
-                        smtp.starttls()
-                        smtp.login(self.cfg.smtp_user, self.cfg.smtp_password)
-                    smtp.send_message(msg)
-                self.db.log(self.name, "sent" if self.live else "dry_send",
-                            f"step {step}: {msg['Subject']}", lead["id"])
+                self.mailer.send(sender, msg, bot=self.name, lead_id=lead["id"],
+                                 detail=f"step {step}: {msg['Subject']}")
                 self.db.update_lead(
                     lead["id"], status="contacted", variant=lead.get("variant") or self.pick_variant(lead),
-                    followups_sent=step, last_contacted=datetime.now(timezone.utc).isoformat(),
+                    sender=sender.email.lower(), followups_sent=step,
+                    last_contacted=datetime.now(timezone.utc).isoformat(),
                 )
                 sent += 1
         finally:
-            if smtp is not None:
-                smtp.quit()
+            self.mailer.close()
         # Prospects who never responded after all follow-ups -> lost
         cutoff = datetime.now(timezone.utc) - timedelta(days=self.cfg.followup_days * 2)
         for row in self.db.leads_by_status("contacted"):
@@ -177,21 +173,57 @@ class OutreachBot:
             return "client_opt_out" if status == "unsubscribed" else "client_reply"
         return status
 
+    # ---------- bounces ----------
+    BOUNCE_FROM = ("mailer-daemon", "postmaster", "mail delivery")
+    ADDR_RE = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
+
+    def is_bounce(self, from_header: str, subject: str, content_type: str) -> bool:
+        f, subj = from_header.lower(), subject.lower()
+        return (any(b in f for b in self.BOUNCE_FROM) or "multipart/report" in content_type
+                or "undeliverable" in subj or "delivery status notification" in subj
+                or "returned mail" in subj)
+
+    def handle_bounce(self, text: str, inbox: str | None = None) -> int:
+        """Suppress every lead address named in a bounce and count it against the inbox."""
+        hits = 0
+        for addr in {a.lower().rstrip(".") for a in self.ADDR_RE.findall(text)}:
+            row = self.db.conn.execute(
+                "SELECT * FROM leads WHERE email = ? AND status IN ('deployed','contacted')", (addr,)
+            ).fetchone()
+            if not row:
+                continue
+            self.db.suppress(addr, "bounce")
+            self.db.update_lead(row["id"], status="bounced")
+            self.db.log(self.name, "bounce", addr, row["id"],
+                        sender=(inbox or row["sender"] or "").lower() or None)
+            hits += 1
+        return hits
+
+    def process_message(self, msg, inbox: str | None = None) -> str:
+        part = msg.get_body(preferencelist=("plain",)) if msg.is_multipart() else msg
+        text = (part.get_payload(decode=True) or b"").decode(errors="ignore") if part else ""
+        subject = msg.get("Subject", "")
+        if self.is_bounce(msg.get("From", ""), subject, msg.get_content_type()):
+            full = msg.as_string() if msg.is_multipart() else text
+            return "bounce" if self.handle_bounce(full, inbox) else "bounce_unmatched"
+        return self.classify_reply(msg.get("From", ""), f"{subject}\n{text}")
+
     def check_inbox(self) -> int:
-        """Reads unseen replies over IMAP: opt-outs are suppressed, everything else
-        is flagged 'replied' so a human can close the deal personally."""
-        if not (self.cfg.imap_host and self.cfg.smtp_user):
-            return 0
+        """Reads unseen mail in every inbox: bounces suppress the address, opt-outs are
+        honored, everything else is flagged 'replied' for a human to close."""
         n = 0
-        with imaplib.IMAP4_SSL(self.cfg.imap_host) as imap:
-            imap.login(self.cfg.smtp_user, self.cfg.smtp_password)
-            imap.select("INBOX")
-            _, ids = imap.search(None, "UNSEEN")
-            for mid in ids[0].split():
-                _, data = imap.fetch(mid, "(RFC822)")
-                msg = message_from_bytes(data[0][1])
-                part = msg.get_body(preferencelist=("plain",)) if msg.is_multipart() else msg
-                text = (part.get_payload(decode=True) or b"").decode(errors="ignore") if part else ""
-                self.classify_reply(msg.get("From", ""), f"{msg.get('Subject', '')}\n{text}")
-                n += 1
+        for sender in self.mailer.senders:
+            if not (sender.imap_host and sender.smtp_user):
+                continue
+            try:
+                with imaplib.IMAP4_SSL(sender.imap_host) as imap:
+                    imap.login(sender.smtp_user, sender.password)
+                    imap.select("INBOX")
+                    _, ids = imap.search(None, "UNSEEN")
+                    for mid in ids[0].split():
+                        _, data = imap.fetch(mid, "(RFC822)")
+                        self.process_message(message_from_bytes(data[0][1]), sender.email)
+                        n += 1
+            except (imaplib.IMAP4.error, OSError) as exc:
+                self.db.log(self.name, "error", f"imap {sender.email}: {exc}")
         return n

@@ -19,6 +19,7 @@ from .bots.outreach_bot import OutreachBot
 from .bots.upsell_bot import UpsellBot
 from .config import Config
 from .db import DB
+from .mailer import Mailer
 from .obsidian import ObsidianSync
 
 log = logging.getLogger(__name__)
@@ -31,10 +32,11 @@ class Orchestrator:
         self.billing = BillingBot(db, cfg)
         self.builder = BuilderBot(db, cfg)
         self.deployer = DeployBot(db, cfg)
-        self.outreach = OutreachBot(db, cfg)
+        self.mailer = Mailer(db, cfg)  # shared: one set of inbox caps for every bot
+        self.outreach = OutreachBot(db, cfg, mailer=self.mailer)
         self.monitor = MonitorBot(db, cfg)
-        self.upsell = UpsellBot(db, cfg)
-        self.obsidian = ObsidianSync(db, cfg)
+        self.upsell = UpsellBot(db, cfg, mailer=self.mailer)
+        self.obsidian = ObsidianSync(db, cfg, mailer=self.mailer)
 
     def onboard_paid_clients(self) -> int:
         """Rebuild paid sites without the preview banner / noindex, redeploy, mark client."""

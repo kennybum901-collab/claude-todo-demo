@@ -84,7 +84,7 @@ class DeployBot:
         """Take down previews for prospects who opted out or never responded, so
         we don't leave sites up for businesses that said no."""
         n = 0
-        for row in self.db.leads_by_status("lost", "unsubscribed"):
+        for row in self.db.leads_by_status("lost", "unsubscribed", "bounced"):
             if not row["netlify_site_id"]:
                 continue
             if self.live:

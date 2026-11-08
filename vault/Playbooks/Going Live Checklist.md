@@ -5,7 +5,7 @@ tags: agency/playbook
 
 - [ ] Business registered (LLC/EIN), business bank account, Stripe connected
 - [ ] `.env`: real company name, **postal address**, email, URL
-- [ ] Separate sending domain, warmed up for 2–3 weeks, SPF/DKIM/DMARC set
+- [ ] 2–3 secondary sending domains with SPF/DKIM/DMARC, one or two inboxes each, listed in `senders.json` with a `warmup_start` date
 - [ ] `GOOGLE_PLACES_API_KEY`, `NETLIFY_TOKEN`, `STRIPE_SECRET_KEY` (test key first), `SMTP_*`, `IMAP_HOST`
 - [ ] Ran in `DRY_RUN=1`, read 10 generated sites and `preview-email` outputs
 - [ ] Targeting US businesses (CAN-SPAM). EU/UK/Canada need consent first.

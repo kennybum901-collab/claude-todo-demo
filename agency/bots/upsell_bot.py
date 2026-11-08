@@ -11,7 +11,6 @@ Offers go out through the same SMTP settings, daily cap and suppression list as 
 from __future__ import annotations
 
 import logging
-import smtplib
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
@@ -21,6 +20,7 @@ from jinja2 import Environment, FileSystemLoader
 
 from ..config import Config
 from ..db import DB, now
+from ..mailer import Mailer
 from .billing_bot import API as STRIPE_API
 from .builder_bot import TEMPLATES
 from .outreach_bot import money
@@ -69,9 +69,11 @@ def best_offers(niche: str | None) -> list[Addon]:
 class UpsellBot:
     name = "upsell"
 
-    def __init__(self, db: DB, cfg: Config, session: requests.Session | None = None):
+    def __init__(self, db: DB, cfg: Config, session: requests.Session | None = None,
+                 mailer: Mailer | None = None):
         self.db, self.cfg = db, cfg
         self.http = session or requests.Session()
+        self.mailer = mailer or Mailer(db, cfg)
         self.env = Environment(loader=FileSystemLoader(TEMPLATES), autoescape=False)
 
     @property
@@ -80,7 +82,7 @@ class UpsellBot:
 
     @property
     def email_live(self) -> bool:
-        return not self.cfg.dry_run and bool(self.cfg.smtp_host)
+        return self.mailer.live
 
     # ---------- eligibility ----------
     def next_offer(self, lead) -> Addon | None:
@@ -134,11 +136,10 @@ class UpsellBot:
         return msg
 
     def send_offers(self) -> int:
-        budget = self.cfg.daily_email_cap - self.db.emails_sent_today()
-        sent, smtp = 0, None
+        sent = 0
         try:
             for lead in self.db.leads_by_status("client"):
-                if sent >= budget:
+                if self.mailer.total_remaining() <= 0:
                     break
                 if not lead["email"] or self.db.is_suppressed(lead["email"]):
                     continue
@@ -148,31 +149,26 @@ class UpsellBot:
                 if self.email_live and not self.stripe_live:
                     self.db.log(self.name, "skipped", "needs live Stripe link", lead["id"])
                     continue
+                sender = self.mailer.pick(lead)
+                if sender is None:
+                    continue
                 try:
                     url, link_id = self._payment_link(lead, addon)
                 except requests.RequestException as exc:
                     self.db.log(self.name, "error", str(exc), lead["id"])
                     continue
                 msg = self.compose(lead, addon, url)
-                if self.email_live:
-                    if smtp is None:
-                        smtp = smtplib.SMTP(self.cfg.smtp_host, self.cfg.smtp_port, timeout=30)
-                        smtp.starttls()
-                        smtp.login(self.cfg.smtp_user, self.cfg.smtp_password)
-                    smtp.send_message(msg)
+                self.mailer.send(sender, msg, bot=self.name, lead_id=lead["id"],
+                                 detail=f"upsell {addon.key}: {msg['Subject']}")
                 with self.db.tx() as c:
                     c.execute(
                         "INSERT OR IGNORE INTO addons (lead_id, addon, price_cents, payment_url, "
                         "payment_link_id, offered_at) VALUES (?,?,?,?,?,?)",
                         (lead["id"], addon.key, addon.price_cents, url, link_id, now()),
                     )
-                # logged as an outreach send so it counts toward the shared daily cap
-                self.db.log("outreach", "sent" if self.email_live else "dry_send",
-                            f"upsell {addon.key}: {msg['Subject']}", lead["id"])
                 sent += 1
         finally:
-            if smtp is not None:
-                smtp.quit()
+            self.mailer.close()
         return sent
 
     # ---------- activation ----------

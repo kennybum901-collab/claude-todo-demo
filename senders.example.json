@@ -1,0 +1,24 @@
+[
+  {
+    "email": "alex@getnorthstar.com",
+    "from_name": "Alex at Northstar Web Studio",
+    "smtp_host": "smtp.gmail.com",
+    "smtp_port": 587,
+    "password_env": "SENDER1_PASSWORD",
+    "imap_host": "imap.gmail.com",
+    "daily_cap": 30,
+    "warmup_start": "2026-11-01"
+  },
+  {
+    "email": "alex@trynorthstar.com",
+    "from_name": "Alex at Northstar Web Studio",
+    "smtp_host": "smtp.gmail.com",
+    "smtp_port": 587,
+    "password_env": "SENDER2_PASSWORD",
+    "imap_host": "imap.gmail.com",
+    "daily_cap": 30,
+    "warmup_start": "2026-11-08",
+    "warmup_base": 5,
+    "warmup_step": 2
+  }
+]

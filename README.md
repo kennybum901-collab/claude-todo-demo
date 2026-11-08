@@ -24,6 +24,7 @@ See **[vault/Business Plan.md](vault/Business%20Plan.md)** for the offer, pricin
 | Upsell bot | `agency/bots/upsell_bot.py` | Offers clients niche-matched add-ons (Review Booster $99, Online Booking $79, Local SEO $199/mo) on a schedule, each with its own Stripe link; tracks activations and cancellations |
 | Monitor bot | `agency/bots/monitor_bot.py` | Uptime checks for paying clients |
 | Obsidian sync | `agency/obsidian.py` | Writes one CRM note per lead, a live Dashboard and a daily log into your vault; reads `do_not_contact` flags back |
+| Mailer | `agency/mailer.py` | Rotates sends across multiple inboxes with per-inbox caps, warm-up ramps, sticky threads and auto-pause on bounces |
 | Orchestrator | `agency/orchestrator.py` | Runs everything in order; one failing bot never stops the rest |
 
 ## Quick start (safe: dry-run)
@@ -80,6 +81,23 @@ python -m agency unsubscribe a@b.com       # do-not-contact, honored forever
 ```
 
 When a prospect replies with anything other than an opt-out, their status becomes `replied` and the bot writes a **suggested answer** into their Obsidian note (Claude if `ANTHROPIC_API_KEY` is set, templates otherwise). Drafts are never sent automatically. Review, edit and send it yourself; that's where deals close.
+
+## Scaling email safely (multiple inboxes)
+
+One inbox should send about 30 cold emails a day at most. To grow, add inboxes, ideally on 2–3 secondary domains (e.g. `getnorthstar.com`, `trynorthstar.com`) with SPF, DKIM and DMARC set up. Never send from your main domain.
+
+```bash
+cp senders.example.json senders.json   # git-ignored; passwords come from env vars via password_env
+```
+
+- **Per-inbox caps and warm-up:** a new inbox starts at `warmup_base` sends a day (default 5) and adds `warmup_step` a day (default 2) until it reaches `daily_cap`.
+- **Rotation:** new leads go to the inbox with the most capacity left today.
+- **Sticky threads:** follow-ups always come from the inbox that sent the first email, so replies stay in one thread.
+- **Bounce handling:** bounce notices are detected in every inbox. The address is suppressed and the lead marked `bounced`.
+- **Auto-pause:** an inbox whose bounce rate over its last 50 sends passes `BOUNCE_PAUSE_RATE` (5%) stops sending. Its leads move to healthy inboxes.
+- **Monitoring:** `report` and the Obsidian Dashboard show each inbox's sends, cap, bounce rate and health.
+
+Without `senders.json`, the single `SMTP_*` settings and `DAILY_EMAIL_CAP` are used exactly as before.
 
 ## Growth & retention features
 

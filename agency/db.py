@@ -2,7 +2,7 @@ r"""SQLite storage: the single source of truth for the whole pipeline.
 
 Lead lifecycle (``leads.status``):
     new -> built -> deployed -> contacted -> replied -> paid -> client -> churned
-                                         \-> lost / unsubscribed
+                                         \-> lost / unsubscribed / bounced
 """
 from __future__ import annotations
 
@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS leads (
     last_contacted  TEXT,
     notes           TEXT,
     variant         TEXT,
+    sender          TEXT,
     last_reply      TEXT,
     reply_draft     TEXT,
     subscription_id TEXT,
@@ -47,6 +48,7 @@ CREATE TABLE IF NOT EXISTS events (
     bot        TEXT NOT NULL,
     kind       TEXT NOT NULL,
     detail     TEXT,
+    sender     TEXT,
     created_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS suppression (
@@ -102,14 +104,18 @@ class DB:
         self._migrate()
 
     # columns added after the first release; ALTER existing databases in place
-    MIGRATIONS = {"variant": "TEXT", "last_reply": "TEXT", "reply_draft": "TEXT",
-                  "subscription_id": "TEXT"}
+    MIGRATIONS = {
+        "leads": {"variant": "TEXT", "last_reply": "TEXT", "reply_draft": "TEXT",
+                  "subscription_id": "TEXT", "sender": "TEXT"},
+        "events": {"sender": "TEXT"},
+    }
 
     def _migrate(self) -> None:
-        have = {r["name"] for r in self.conn.execute("PRAGMA table_info(leads)")}
-        for col, typ in self.MIGRATIONS.items():
-            if col not in have:
-                self.conn.execute(f"ALTER TABLE leads ADD COLUMN {col} {typ}")
+        for table, cols in self.MIGRATIONS.items():
+            have = {r["name"] for r in self.conn.execute(f"PRAGMA table_info({table})")}
+            for col, typ in cols.items():
+                if col not in have:
+                    self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {typ}")
         self.conn.commit()
 
     @contextmanager
@@ -151,17 +157,19 @@ class DB:
         ).fetchall()
 
     # ---------- events / audit log ----------
-    def log(self, bot: str, kind: str, detail: str = "", lead_id: int | None = None) -> None:
+    def log(self, bot: str, kind: str, detail: str = "", lead_id: int | None = None,
+            sender: str | None = None) -> None:
         with self.tx() as c:
             c.execute(
-                "INSERT INTO events (lead_id, bot, kind, detail, created_at) VALUES (?,?,?,?,?)",
-                (lead_id, bot, kind, detail, now()),
+                "INSERT INTO events (lead_id, bot, kind, detail, sender, created_at) "
+                "VALUES (?,?,?,?,?,?)",
+                (lead_id, bot, kind, detail, sender, now()),
             )
 
     def emails_sent_today(self) -> int:
         today = datetime.now(timezone.utc).date().isoformat()
         row = self.conn.execute(
-            "SELECT COUNT(*) FROM events WHERE bot='outreach' AND kind IN ('sent','dry_send') "
+            "SELECT COUNT(*) FROM events WHERE kind IN ('sent','dry_send') "
             "AND substr(created_at,1,10)=?",
             (today,),
         ).fetchone()
@@ -210,7 +218,8 @@ class DB:
         clients = counts.get("client", 0)
         churned = counts.get("churned", 0)
         contacted = sum(counts.get(s, 0) for s in
-                        ("contacted", "replied", "paid", "client", "churned", "lost", "unsubscribed"))
+                        ("contacted", "replied", "paid", "client", "churned", "lost", "unsubscribed",
+                         "bounced"))
         return {
             "pipeline": counts,
             "clients": clients,

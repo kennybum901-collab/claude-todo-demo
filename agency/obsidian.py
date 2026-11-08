@@ -22,12 +22,13 @@ from pathlib import Path
 
 from .config import Config
 from .db import DB
+from .mailer import Mailer
 
 START, END = "<!-- AGENCY:START (managed by bots, edits here are overwritten) -->", "<!-- AGENCY:END -->"
 NOTES_HEADER = "## My notes"
 STATUS_EMOJI = {
     "new": "🆕", "built": "🛠️", "deployed": "🌐", "contacted": "✉️", "replied": "🔥",
-    "paid": "💳", "client": "✅", "churned": "💔", "lost": "🪦", "unsubscribed": "🚫",
+    "paid": "💳", "client": "✅", "churned": "💔", "lost": "🪦", "unsubscribed": "🚫", "bounced": "📭",
 }
 
 
@@ -62,8 +63,9 @@ def _money(cents: int) -> str:
 
 
 class ObsidianSync:
-    def __init__(self, db: DB, cfg: Config):
+    def __init__(self, db: DB, cfg: Config, mailer: Mailer | None = None):
         self.db, self.cfg = db, cfg
+        self.mailer = mailer
         self.vault = Path(cfg.obsidian_vault)
 
     # ---------- two-way: read user intent from notes ----------
@@ -190,7 +192,7 @@ class ObsidianSync:
             "WHERE u.id IN (SELECT MAX(id) FROM uptime GROUP BY lead_id) AND u.ok = 0"
         ).fetchall()
         order = ["new", "built", "deployed", "contacted", "replied", "paid", "client", "churned",
-                 "lost", "unsubscribed"]
+                 "lost", "unsubscribed", "bounced"]
         at_risk = self.db.conn.execute(
             "SELECT DISTINCT l.* FROM events e JOIN leads l ON l.id = e.lead_id WHERE e.kind = 'past_due' "
             "AND l.status = 'client' AND substr(e.created_at,1,10) >= date('now','-3 day')"
@@ -206,6 +208,11 @@ class ObsidianSync:
             "SELECT DISTINCT l.* FROM events e JOIN leads l ON l.id = e.lead_id "
             "WHERE e.kind = 'client_reply' AND substr(e.created_at,1,10) >= date('now','-7 day')"
         ).fetchall()
+        inbox_rows = "\n".join(
+            f"| {i['email']} | {i['sent_today']}/{i['cap_today']} | {i['bounce_rate']:.1%} ({i['recent_sends']} sends) | "
+            + ("⏸️ paused" if i["paused"] else "🌱 warming up" if i["warming"] else "🟢 ok") + " |"
+            for i in (self.mailer or Mailer(self.db, self.cfg)).status()
+        )
         ab = self.db.variant_stats()
         ab_table = "\n".join(
             f"| {v['variant']} | {v['sent']} | {v['replies']} ({v['reply_rate']:.1%}) | {v['wins']} ({v['win_rate']:.1%}) |"
@@ -242,6 +249,13 @@ updated: "{stamp}"
 | Stage | Leads |
 |---|---|
 {pipeline}
+
+## 📮 Sending inboxes
+| Inbox | Sent today | Bounce rate | Health |
+|---|---|---|---|
+{inbox_rows}
+
+*Inboxes auto-pause above {self.cfg.bounce_pause_rate:.0%} bounces. Configure them in `senders.json`.*
 
 ## 📈 Add-on upsells
 | Add-on | Offered | Active | MRR |
