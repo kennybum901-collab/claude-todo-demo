@@ -302,6 +302,8 @@ class ObsidianSync:
         unforwarded = self.db.conn.execute(
             "SELECT l.*, COUNT(*) n FROM quotes q JOIN leads l ON l.id = q.lead_id "
             "WHERE q.notified = 0 GROUP BY l.id").fetchall()
+        from .bots.winback_bot import WinbackBot
+        wb = WinbackBot(self.db, self.cfg, mailer=self.mailer).stats()
         ab = self.db.variant_stats()
         ab_table = "\n".join(
             f"| {v['variant']} | {v['sent']} | {v['replies']} ({v['reply_rate']:.1%}) | {v['wins']} ({v['win_rate']:.1%}) |"
@@ -357,6 +359,9 @@ updated: "{stamp}"
 | Add-on | Offered | Active | MRR |
 |---|---|---|---|
 {addon_table}
+
+## 🔁 Win-back
+{wb['contacted']} people contacted · **{wb['recovered']} won back**
 
 ## 🧪 Subject line A/B test
 | Variant | Sent | Replies | Wins |

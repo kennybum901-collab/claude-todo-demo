@@ -100,6 +100,17 @@ CREATE TABLE IF NOT EXISTS edits (
     decided_at    TEXT,
     applied_at    TEXT
 );
+CREATE TABLE IF NOT EXISTS winbacks (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    lead_id         INTEGER NOT NULL,
+    audience        TEXT NOT NULL,     -- churned | lost
+    step            INTEGER NOT NULL,
+    payment_url     TEXT,
+    payment_link_id TEXT,
+    sent_at         TEXT NOT NULL,
+    recovered_at    TEXT,
+    UNIQUE (lead_id, audience, step)
+);
 CREATE TABLE IF NOT EXISTS reports (
     lead_id  INTEGER NOT NULL,
     period   TEXT NOT NULL,          -- YYYY-MM the report covers

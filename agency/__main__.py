@@ -85,6 +85,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Close rate:        {m['close_rate']:.1%}")
         print(f"Churn:             {m['churned']} ({m['churn_rate']:.1%})")
         print(f"Emails today:      {m['emails_today']}/{config.daily_email_cap}")
+        from .bots.winback_bot import WinbackBot
+        wb = WinbackBot(db, config).stats()
+        print(f"Win-back:          {wb['recovered']} won back of {wb['contacted']} contacted")
         print("\nInboxes:")
         for i in Mailer(db, config).status():
             health = "PAUSED" if i["paused"] else "warming" if i["warming"] else "ok"

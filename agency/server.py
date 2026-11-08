@@ -25,6 +25,7 @@ from urllib.parse import parse_qs, urlparse
 
 from .bots.billing_bot import BillingBot
 from .bots.upsell_bot import UpsellBot
+from .bots.winback_bot import WinbackBot
 from .config import Config
 from .db import DB, now
 from .orchestrator import Orchestrator
@@ -96,6 +97,9 @@ class StripeEvents:
                 self.db.record_payment(obj["id"], lead_id, amount, currency, f"addon:{meta['addon']}")
                 self.upsell.activate(lead_id, meta["addon"], obj.get("subscription"))
                 return "addon_activated"
+            if meta.get("winback") and WinbackBot(self.db, self.cfg).recover(
+                    lead_id, obj["id"], amount, currency, obj.get("subscription")):
+                return "winback_recovered"
             self.billing.mark_paid(lead_id, obj["id"], amount, currency,
                                    subscription_id=obj.get("subscription"))
             return "lead_paid"
@@ -110,7 +114,11 @@ class StripeEvents:
                               (lead_id, addon))
                 self.db.log("billing", "addon_canceled", addon, lead_id)
                 return "addon_canceled"
-            if self.db.get_lead(lead_id)["status"] == "client":
+            lead = self.db.get_lead(lead_id)
+            current_sub = lead["subscription_id"] if lead else None
+            if current_sub and obj.get("id") and current_sub != obj.get("id"):
+                return "old_subscription"  # e.g. a won-back client's previous plan
+            if lead and lead["status"] == "client":
                 self.db.update_lead(lead_id, status="churned")
                 self.db.log("billing", "churned", "subscription deleted", lead_id)
             return "churned"

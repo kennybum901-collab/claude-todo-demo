@@ -61,6 +61,9 @@ class Config:
     bounce_pause_rate: float = float(os.environ.get("BOUNCE_PAUSE_RATE", "0.05"))
     reports_enabled: bool = _bool("REPORTS_ENABLED", True)
     report_day: int = _int("REPORT_DAY", 1)          # day of month monthly reports go out
+    winback_enabled: bool = _bool("WINBACK_ENABLED", True)
+    winback_churn_days: int = _int("WINBACK_CHURN_DAYS", 30)   # first email to a cancelled client
+    winback_lost_days: int = _int("WINBACK_LOST_DAYS", 90)     # one last email to a silent prospect
     upsell_enabled: bool = _bool("UPSELL_ENABLED", True)
     upsell_after_days: int = _int("UPSELL_AFTER_DAYS", 60)
     upsell_gap_days: int = _int("UPSELL_GAP_DAYS", 30)

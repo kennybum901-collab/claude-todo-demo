@@ -1,0 +1,18 @@
+Subject: {% if step == 1 %}Your {{ lead.business_name }} website, want it back?{% else %}Last call: {{ lead.business_name }}'s website{% endif %}
+Hi {{ lead.business_name }} team,
+
+{% if step == 1 %}It's been about a month since your website plan ended. I still have your site saved{% if quotes_total %}, the one that brought in {{ quotes_total }} quote request{{ "s" if quotes_total != 1 }}{% endif %}.
+
+If you'd like it back, I'll relaunch it exactly as it was, with no setup fee: just {{ monthly }}/month, cancel anytime.{% else %}Just one more note: I'm clearing out saved sites soon. If you'd like {{ lead.business_name }}'s website back online, the no-setup-fee offer still stands: {{ monthly }}/month, cancel anytime.{% endif %}
+
+Bring it back: {{ payment_url }}
+
+And if something wasn't right last time, reply and tell me. I'd genuinely like to know.
+
+{{ cfg.owner_name }}
+{{ cfg.company_name }} | {{ cfg.company_url }}
+
+--
+{{ cfg.company_name }}, {{ cfg.company_address }}
+Reply "STOP" and you won't hear from me again.
+{% if unsub %}Unsubscribe instantly: {{ unsub }}{% endif %}

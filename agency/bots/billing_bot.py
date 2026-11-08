@@ -98,8 +98,8 @@ class BillingBot:
         return paid
 
     def mark_paid(self, lead_id: int, payment_id: str, amount: int, currency: str,
-                  subscription_id: str | None = None) -> None:
-        if self.db.record_payment(payment_id, lead_id, amount, currency, "setup+first_month"):
+                  subscription_id: str | None = None, kind: str = "setup+first_month") -> None:
+        if self.db.record_payment(payment_id, lead_id, amount, currency, kind):
             fields = {"status": "paid"}
             if subscription_id:
                 fields["subscription_id"] = subscription_id

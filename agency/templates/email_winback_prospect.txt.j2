@@ -1,0 +1,16 @@
+Subject: Still thinking about a website for {{ lead.business_name }}?
+Hi {{ lead.business_name }} team,
+
+A few months ago I built a free preview website for {{ lead.business_name }}. I never heard back, which is totally fine. This is the last time I'll reach out.
+
+If the timing is better now, I can have it live this week with no setup fee: just {{ monthly }}/month for hosting, security and updates, cancel anytime.
+
+Get started: {{ payment_url }}
+
+{{ cfg.owner_name }}
+{{ cfg.company_name }} | {{ cfg.company_url }}
+
+--
+{{ cfg.company_name }}, {{ cfg.company_address }}
+Reply "STOP" to opt out.
+{% if unsub %}Unsubscribe instantly: {{ unsub }}{% endif %}

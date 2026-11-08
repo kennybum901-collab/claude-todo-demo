@@ -140,6 +140,7 @@ class OutreachBot:
             if (row["followups_sent"] >= self.cfg.max_followups and row["last_contacted"]
                     and datetime.fromisoformat(row["last_contacted"]) < cutoff):
                 self.db.update_lead(row["id"], status="lost")
+                self.db.log(self.name, "lost", "no reply after follow-ups", row["id"])
         log.info("outreach bot: %d emails (%s)", sent, "live" if self.live else "dry run")
         return sent
 

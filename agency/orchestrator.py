@@ -18,6 +18,7 @@ from .bots.monitor_bot import MonitorBot
 from .bots.outreach_bot import OutreachBot
 from .bots.report_bot import ReportBot
 from .bots.upsell_bot import UpsellBot
+from .bots.winback_bot import WinbackBot
 from .config import Config
 from .db import DB
 from .edits import EditBot
@@ -40,6 +41,7 @@ class Orchestrator:
         self.upsell = UpsellBot(db, cfg, mailer=self.mailer)
         self.reports = ReportBot(db, cfg, mailer=self.mailer)
         self.edits = EditBot(db, cfg, mailer=self.mailer)
+        self.winback = WinbackBot(db, cfg, mailer=self.mailer)
         self.obsidian = ObsidianSync(db, cfg, mailer=self.mailer)
 
     def onboard_paid_clients(self) -> int:
@@ -80,6 +82,7 @@ class Orchestrator:
             "emailed": self._step("outreach", self.outreach.run),
             "paid": self._step("payments", self.billing.check_payments),
             "subscriptions": self._step("subs", self.billing.check_subscriptions),
+            "winback": self._step("winback", self.winback.run) if self.cfg.winback_enabled else None,
             "onboarded": self._step("onboard", self.onboard_paid_clients),
             "upsell": self._step("upsell", self.upsell.run) if self.cfg.upsell_enabled else None,
             "down": self._step("monitor", self.monitor.run),
