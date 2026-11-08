@@ -1,4 +1,6 @@
-# Website agency automation
+# SiteSprout: website agency automation
+
+**Launching SiteSprout (Austin, TX)? Follow [`deploy/SITESPROUT_LAUNCH.md`](deploy/SITESPROUT_LAUNCH.md).**
 
 A Python system that runs a "done-for-you websites" business for local companies.
 

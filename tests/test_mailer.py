@@ -118,3 +118,11 @@ def test_single_inbox_sends_from_its_own_login(env):
     (s,) = load_senders(replace(cfg, smtp_host="smtp.gmail.com", smtp_user="alex@get-studio.example",
                                 company_email="hi@studio.example"))
     assert s.email == "alex@get-studio.example"     # not the main domain: keeps SPF/DMARC aligned
+
+
+def test_empty_senders_file_falls_back_to_smtp(env, tmp_path):
+    db, cfg = env
+    f = tmp_path / "senders.json"
+    f.write_text("[]")
+    (s,) = load_senders(replace(cfg, senders_file=f, smtp_host="smtp.x", smtp_user="a@b.example"))
+    assert s.email == "a@b.example" and s.smtp_host == "smtp.x"
