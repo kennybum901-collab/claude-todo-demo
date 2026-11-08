@@ -41,6 +41,11 @@ def main(argv: list[str] | None = None) -> int:
     ad = sub.add_parser("addon-activate", help="manually activate an add-on for a client")
     ad.add_argument("lead_id", type=int)
     ad.add_argument("addon", choices=[a.key for a in CATALOG])
+    sub.add_parser("edits", help="list site edit requests waiting for approval")
+    ea = sub.add_parser("edit-approve", help="approve a drafted site edit (goes live next run)")
+    ea.add_argument("edit_id", type=int)
+    er = sub.add_parser("edit-reject", help="reject / close a site edit request")
+    er.add_argument("edit_id", type=int)
     sub.add_parser("rebuild-clients", help="rebuild + redeploy every client site (e.g. after setting PUBLIC_URL)")
     rp = sub.add_parser("preview-report", help="print last month's report for a client")
     rp.add_argument("lead_id", type=int)
@@ -111,6 +116,14 @@ def main(argv: list[str] | None = None) -> int:
     elif args.cmd == "addon-activate":
         ok = UpsellBot(db, config).activate(args.lead_id, args.addon)
         print(f"{args.addon} {'activated' if ok else 'was already active'} for lead {args.lead_id}")
+    elif args.cmd == "edits":
+        for e in db.conn.execute("SELECT e.*, l.business_name FROM edits e JOIN leads l ON l.id=e.lead_id "
+                                 "WHERE e.status IN ('new','drafted','needs_human') ORDER BY e.id"):
+            print(f"#{e['id']:<4} {e['status']:<12} {e['business_name']}: {e['summary'] or e['message'][:60]}")
+    elif args.cmd in ("edit-approve", "edit-reject"):
+        from .edits import EditBot
+        ok = EditBot(db, config).decide(args.edit_id, approve=args.cmd == "edit-approve")
+        print("done" if ok else "not found, already decided, or nothing to apply automatically")
     elif args.cmd == "rebuild-clients":
         orch = Orchestrator(db, config)
         clients = db.leads_by_status("client")

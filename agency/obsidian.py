@@ -16,6 +16,7 @@ adds that email to the suppression list.
 """
 from __future__ import annotations
 
+import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
@@ -81,6 +82,69 @@ class ObsidianSync:
                         self.db.update_lead(int(fm["lead_id"]), status="unsubscribed")
                     n += 1
         return n
+
+    def pull_edit_decisions(self) -> int:
+        """`approve: true` / `reject: true` in an Edits/ note -> decision recorded."""
+        from .edits import EditBot
+
+        folder = self.vault / "Edits"
+        if not folder.exists():
+            return 0
+        bot, n = EditBot(self.db, self.cfg, mailer=self.mailer), 0
+        for path in folder.glob("*.md"):
+            fm = parse_frontmatter(path.read_text(encoding="utf-8"))
+            if not fm.get("edit_id", "").isdigit():
+                continue
+            approve = fm.get("approve", "").lower() == "true"
+            reject = fm.get("reject", "").lower() == "true"
+            if approve != reject and bot.decide(int(fm["edit_id"]), approve=approve):
+                n += 1
+        return n
+
+    def write_edits(self) -> None:
+        folder = self.vault / "Edits"
+        rows = self.db.conn.execute(
+            "SELECT e.*, l.business_name, l.id lid FROM edits e JOIN leads l ON l.id = e.lead_id "
+            "WHERE e.status != 'new' ORDER BY e.id").fetchall()
+        if not rows:
+            return
+        folder.mkdir(parents=True, exist_ok=True)
+        from .edits import diff
+
+        for e in rows:
+            lead = {"business_name": e["business_name"], "id": e["lid"]}
+            path = folder / f"{note_name(lead)} edit {e['id']}.md"
+            if path.exists():
+                # only rewrite when the status changed, so an `approve: true` you just
+                # set (and any notes you add) survive until the next run reads them
+                fm = parse_frontmatter(path.read_text(encoding="utf-8"))
+                if fm.get("status") == e["status"]:
+                    continue
+            changes = ""
+            if e["proposed_json"]:
+                rows_md = "\n".join(
+                    f"| **{f}** | {b.replace('|', '/')[:300]} | {a.replace('|', '/')[:300]} |"
+                    for f, b, a in diff(json.loads(e["before_json"]), json.loads(e["proposed_json"])))
+                changes = f"## Proposed change\n| Field | Now | After |\n|---|---|---|\n{rows_md}\n"
+            how = {
+                "drafted": "> [!todo] Review the change, then set **approve: true** (or **reject: true**) above. It goes live on the next run.",
+                "needs_human": ("> [!warning] Needs you: part of this can't be done automatically. "
+                                + ("Approve to apply the drafted text changes, then handle the rest by hand." if e["proposed_json"]
+                                   else "Make the change by hand, then set **reject: true** to close it.")),
+                "not_request": "> [!info] Not a change request (no action needed).",
+                "approved": "> [!success] Approved: going live on the next run.",
+                "applied": "> [!success] Live. The client was emailed.",
+                "rejected": "> [!failure] Rejected.",
+            }.get(e["status"], "")
+            quoted = "\n".join(f"> {line}" for line in e["message"].strip().splitlines())
+            path.write_text(
+                f"---\nedit_id: {e['id']}\nlead_id: {e['lid']}\nstatus: \"{e['status']}\"\n"
+                f"approve: false\nreject: false\ntags: agency/edit\n---\n"
+                f"# ✏️ {e['business_name']}: {e['summary'] or 'site edit'}\n\n{how}\n\n"
+                f"Client: [[{note_name(lead)}]] · requested {e['created_at'][:10]}\n\n"
+                f"## Their message\n{quoted}\n\n{changes}",
+                encoding="utf-8",
+            )
 
     # ---------- one-way: write notes ----------
     def _lead_note(self, row, existing: str) -> str:
@@ -228,6 +292,9 @@ class ObsidianSync:
             + ("⏸️ paused" if i["paused"] else "🌱 warming up" if i["warming"] else "🟢 ok") + " |"
             for i in (self.mailer or Mailer(self.db, self.cfg)).status()
         )
+        pending_edits = self.db.conn.execute(
+            "SELECT e.*, l.business_name, l.id lid FROM edits e JOIN leads l ON l.id = e.lead_id "
+            "WHERE e.status IN ('drafted','needs_human') ORDER BY e.id").fetchall()
         month = datetime.now(timezone.utc).strftime("%Y-%m")
         quotes_month = self.db.conn.execute(
             "SELECT COUNT(*) FROM quotes WHERE substr(created_at,1,7) = ?", (month,)).fetchone()[0]
@@ -257,6 +324,9 @@ updated: "{stamp}"
 
 ## 🔥 Replies waiting for you
 {chr(10).join(f"- [[{note_name(r)}]] ({r['email']}): " + (r['last_reply'] or '').strip().splitlines()[0][:80] if (r['last_reply'] or '').strip() else f"- [[{note_name(r)}]] ({r['email']})" for r in hot) or "- None right now"}
+
+## ✏️ Site edits waiting for your approval
+{chr(10).join(f"- [[{note_name({'business_name': r['business_name'], 'id': r['lid']})} edit {r['id']}]]: {r['summary']}" + (" ⚠️ needs you" if r['status'] == 'needs_human' else "") for r in pending_edits) or "- None"}
 
 ## 📝 Quote requests (client websites)
 **{quotes_month}** this month · {quotes_all} all time
@@ -333,10 +403,12 @@ See also: [[Home]] · [[Business Plan]] · [[Playbooks/Closing a Reply]]
     def push(self) -> int:
         self.vault.mkdir(parents=True, exist_ok=True)
         written = self.write_leads()
+        self.write_edits()
         self.write_dashboard()
         self.write_daily()
         return written
 
     def run(self) -> dict:
+        self.pull_edit_decisions()
         pulled = self.pull()
         return {"do_not_contact_applied": pulled, "notes_written": self.push()}

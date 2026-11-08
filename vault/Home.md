@@ -24,6 +24,7 @@ Open this folder as a vault in Obsidian (**Open folder as vault → `vault/`**),
 |---|---|
 | Write anything under `## My notes` in a lead | Kept forever; bots never touch it |
 | Set `do_not_contact: true` in a lead's properties | Next run suppresses that email before any outreach |
+| Set `approve: true` in an `Edits/` note | The client's requested site change goes live next run and they're emailed |
 | Open [[Dashboard]] | See who replied and needs a personal answer |
 
 Recommended community plugin: **Dataview** (powers the live table on the dashboard).

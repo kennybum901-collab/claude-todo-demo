@@ -5,6 +5,7 @@ senders.json
 vault/Leads/
 vault/Daily/
 vault/Reports/
+vault/Edits/
 vault/Dashboard.md
 **/__pycache__
 tests/

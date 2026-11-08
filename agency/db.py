@@ -88,6 +88,18 @@ CREATE TABLE IF NOT EXISTS quotes (
     notified     INTEGER NOT NULL DEFAULT 0,
     created_at   TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS edits (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    lead_id       INTEGER NOT NULL,
+    message       TEXT NOT NULL,
+    status        TEXT NOT NULL,  -- new|drafted|needs_human|not_request|approved|rejected|applied
+    summary       TEXT,
+    before_json   TEXT,
+    proposed_json TEXT,
+    created_at    TEXT NOT NULL,
+    decided_at    TEXT,
+    applied_at    TEXT
+);
 CREATE TABLE IF NOT EXISTS reports (
     lead_id  INTEGER NOT NULL,
     period   TEXT NOT NULL,          -- YYYY-MM the report covers

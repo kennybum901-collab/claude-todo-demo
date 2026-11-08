@@ -172,7 +172,12 @@ class OutreachBot:
             # the same; an opt-out above only stops future marketing emails.
             self.db.update_lead(client["id"], last_reply=text[:5000])
             self.db.log(self.name, "client_reply", text[:200], client["id"])
-            return "client_opt_out" if status == "unsubscribed" else "client_reply"
+            if status == "unsubscribed":
+                return "client_opt_out"
+            if client["status"] == "client":
+                from ..edits import EditBot  # a reply may be a change request for their site
+                EditBot(self.db, self.cfg, mailer=self.mailer).submit(client["id"], text)
+            return "client_reply"
         return status
 
     # ---------- bounces ----------

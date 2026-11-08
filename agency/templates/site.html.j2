@@ -88,6 +88,7 @@
   <h2>Contact</h2>
   {% if lead.phone %}<p>Phone: <a href="tel:{{ lead.phone|replace(' ', '') }}">{{ lead.phone }}</a></p>{% endif %}
   {% if lead.address %}<p>{{ lead.address }}</p>{% endif %}
+  {% if copy.hours %}<p><strong>Hours:</strong> {{ copy.hours }}</p>{% endif %}
 </div></section>
 
 <footer><div class="wrap">© {{ year }} {{ lead.business_name }}. Website by <a href="{{ cfg.company_url }}">{{ cfg.company_name }}</a>.</div></footer>

@@ -20,6 +20,7 @@ from .bots.report_bot import ReportBot
 from .bots.upsell_bot import UpsellBot
 from .config import Config
 from .db import DB
+from .edits import EditBot
 from .mailer import Mailer
 from .obsidian import ObsidianSync
 
@@ -38,6 +39,7 @@ class Orchestrator:
         self.monitor = MonitorBot(db, cfg)
         self.upsell = UpsellBot(db, cfg, mailer=self.mailer)
         self.reports = ReportBot(db, cfg, mailer=self.mailer)
+        self.edits = EditBot(db, cfg, mailer=self.mailer)
         self.obsidian = ObsidianSync(db, cfg, mailer=self.mailer)
 
     def onboard_paid_clients(self) -> int:
@@ -65,12 +67,14 @@ class Orchestrator:
         summary = {}
         if self.cfg.obsidian_enabled:  # apply do_not_contact flags BEFORE any email goes out
             summary["obsidian_pull"] = self._step("obsidian<", self.obsidian.pull)
+            summary["edit_decisions"] = self._step("approvals", self.obsidian.pull_edit_decisions)
         summary |= {
             "leads": self._step("leads", self.leads.run),
             "links": self._step("links", self.billing.create_links),
             "built": self._step("build", self.builder.run),
             "deployed": self._step("deploy", self.deployer.run),
             "replies": self._step("inbox", self.outreach.check_inbox),
+            "edits": self._step("edits", self.edits.run, self.builder, self.deployer),
             # clients first: reports use inbox capacity before cold outreach does
             "reports": self._step("reports", self.reports.run) if self.cfg.reports_enabled else None,
             "emailed": self._step("outreach", self.outreach.run),

@@ -6,6 +6,7 @@ __pycache__/
 vault/Leads/
 vault/Daily/
 vault/Reports/
+vault/Edits/
 vault/Dashboard.md
 vault/.obsidian/workspace*.json
 vault/.obsidian/plugins/
