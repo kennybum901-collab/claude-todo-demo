@@ -135,6 +135,7 @@ class ObsidianSync:
             + (f" · {row['rating']}★ ({row['review_count']} reviews)" if row["rating"] else "")
             + self._reply_section(row)
             + self._addon_section(row)
+            + self._quote_section(row)
             + f"\n\n## Activity\n{timeline}\n\nBack to [[Dashboard]]\n{END}\n"
         )
 
@@ -169,6 +170,20 @@ class ObsidianSync:
             for a in addons
         )
         return f"\n\n## Add-ons\n{lines}"
+
+    def _quote_section(self, row) -> str:
+        quotes = self.db.conn.execute(
+            "SELECT * FROM quotes WHERE lead_id = ? ORDER BY id DESC LIMIT 10", (row["id"],)
+        ).fetchall()
+        if not quotes:
+            return ""
+        total = self.db.conn.execute("SELECT COUNT(*) FROM quotes WHERE lead_id = ?", (row["id"],)).fetchone()[0]
+        lines = "\n".join(
+            f"- `{q['created_at'][:10]}` **{q['name']}** · {q['phone'] or q['email']} · {q['service'] or ''}"
+            + ("" if q["notified"] else " · ⚠️ not forwarded, send it to the client")
+            for q in quotes
+        )
+        return f"\n\n## Quote requests ({total} total)\n{lines}"
 
     def write_leads(self) -> int:
         folder = self.vault / "Leads"
@@ -213,6 +228,13 @@ class ObsidianSync:
             + ("⏸️ paused" if i["paused"] else "🌱 warming up" if i["warming"] else "🟢 ok") + " |"
             for i in (self.mailer or Mailer(self.db, self.cfg)).status()
         )
+        month = datetime.now(timezone.utc).strftime("%Y-%m")
+        quotes_month = self.db.conn.execute(
+            "SELECT COUNT(*) FROM quotes WHERE substr(created_at,1,7) = ?", (month,)).fetchone()[0]
+        quotes_all = self.db.conn.execute("SELECT COUNT(*) FROM quotes").fetchone()[0]
+        unforwarded = self.db.conn.execute(
+            "SELECT l.*, COUNT(*) n FROM quotes q JOIN leads l ON l.id = q.lead_id "
+            "WHERE q.notified = 0 GROUP BY l.id").fetchall()
         ab = self.db.variant_stats()
         ab_table = "\n".join(
             f"| {v['variant']} | {v['sent']} | {v['replies']} ({v['reply_rate']:.1%}) | {v['wins']} ({v['win_rate']:.1%}) |"
@@ -235,6 +257,10 @@ updated: "{stamp}"
 
 ## 🔥 Replies waiting for you
 {chr(10).join(f"- [[{note_name(r)}]] ({r['email']}): " + (r['last_reply'] or '').strip().splitlines()[0][:80] if (r['last_reply'] or '').strip() else f"- [[{note_name(r)}]] ({r['email']})" for r in hot) or "- None right now"}
+
+## 📝 Quote requests (client websites)
+**{quotes_month}** this month · {quotes_all} all time
+{chr(10).join(f"- ⚠️ [[{note_name(r)}]]: {r['n']} request(s) not forwarded (no client email or send failed)" for r in unforwarded) or ""}
 
 ## 💬 Client messages (last 7 days)
 {chr(10).join(f"- [[{note_name(r)}]]: " + (r['last_reply'] or '').strip().splitlines()[0][:80] for r in client_msgs if (r['last_reply'] or '').strip()) or "- None"}

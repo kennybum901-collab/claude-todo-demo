@@ -5,7 +5,7 @@ tags: agency/playbook
 
 1. Open [[Dashboard]] and check **🔥 Replies waiting for you**. Each lead note has a suggested answer; edit it and send it personally ([[Playbooks/Closing a Reply]]).
 2. Check **💳 Payment problems**. Call those clients today; a failing card is the #1 cause of churn.
-3. Check **🚨 Client sites down**. Paying clients come first.
+3. Check **🚨 Client sites down** and **📝 Quote requests** (forward any marked ⚠️ by hand). Paying clients come first.
 4. Skim today's note in `Daily/` for bot errors.
 5. Spot-check two or three new preview sites (open the `preview_url` in their lead notes).
 6. Call phone-only leads: `python -m agency call-list`. Log the outcome under `## My notes`.

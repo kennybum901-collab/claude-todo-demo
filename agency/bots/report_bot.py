@@ -20,6 +20,7 @@ from jinja2 import Environment, FileSystemLoader
 from ..config import Config
 from ..db import DB, now
 from ..mailer import Mailer
+from ..quotes import counts as quote_counts
 from ..unsubscribe import url as unsubscribe_url
 from .builder_bot import TEMPLATES
 from .outreach_bot import money
@@ -84,6 +85,8 @@ class ReportBot:
         offered = {a["addon"] for a in self.db.addons_for(lead["id"])}
         suggestion = next((a for a in best_offers(lead["niche"]) if a.key not in offered), None)
         return {
+            "quotes": quote_counts(self.db, lead["id"], lo, hi),
+            "quotes_total": quote_counts(self.db, lead["id"]),
             "checks": checks,
             "uptime_pct": 100.0 * ok / checks if checks else 0.0,
             "avg_ms": int(row["ms"] or 0),

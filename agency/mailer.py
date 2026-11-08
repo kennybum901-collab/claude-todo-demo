@@ -153,12 +153,27 @@ class Mailer:
         return max(candidates, key=lambda c: c[0])[1]
 
     # ---------- sending ----------
-    def send(self, sender: Sender, msg: EmailMessage, *, bot: str, lead_id: int, detail: str) -> None:
-        for h in ("From", "List-Unsubscribe", "List-Unsubscribe-Post", "Reply-To"):
+    def notify_sender(self) -> Sender | None:
+        """Inbox for transactional notices (e.g. forwarding a quote to a client).
+        These ignore the cold-email daily cap but never use a paused inbox."""
+        healthy = [s for s in self.senders if not self.is_paused(s)]
+        if self.live:
+            healthy = [s for s in healthy if s.can_send_live]
+        return healthy[0] if healthy else None
+
+    def send(self, sender: Sender, msg: EmailMessage, *, bot: str, lead_id: int, detail: str,
+             kind: str | None = None) -> None:
+        """kind=None: marketing email (counts toward caps, gets unsubscribe headers).
+        kind="notify": transactional notice (no cap, keeps Reply-To)."""
+        transactional = kind == "notify"
+        for h in ("From", "List-Unsubscribe", "List-Unsubscribe-Post"):
             del msg[h]
+        if not transactional:
+            del msg["Reply-To"]
         msg["From"] = f"{sender.from_name} <{sender.email}>"
-        for k, v in unsubscribe_headers(msg["To"], sender.email, self.cfg).items():
-            msg[k] = v
+        if not transactional:
+            for k, v in unsubscribe_headers(msg["To"], sender.email, self.cfg).items():
+                msg[k] = v
         live = self.live and sender.can_send_live
         if live:
             conn = self._conns.get(sender.email)
@@ -169,7 +184,8 @@ class Mailer:
                 conn.login(sender.smtp_user, sender.password)
                 self._conns[sender.email] = conn
             conn.send_message(msg)
-        self.db.log(bot, "sent" if live else "dry_send", detail, lead_id, sender=sender.email.lower())
+        logged = ("notify" if live else "dry_notify") if transactional else ("sent" if live else "dry_send")
+        self.db.log(bot, logged, detail, lead_id, sender=sender.email.lower())
 
     def close(self) -> None:
         for conn in self._conns.values():

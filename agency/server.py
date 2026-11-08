@@ -18,6 +18,7 @@ import json
 import logging
 import threading
 import time
+from collections import defaultdict, deque
 from html import escape
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
@@ -27,6 +28,7 @@ from .bots.upsell_bot import UpsellBot
 from .config import Config
 from .db import DB, now
 from .orchestrator import Orchestrator
+from .quotes import QuoteError, submit as submit_quote, verify as verify_quote
 from .unsubscribe import verify as verify_unsubscribe
 
 log = logging.getLogger(__name__)
@@ -128,6 +130,27 @@ class StripeEvents:
 
 
 # ---------------------------------------------------------------------------
+# Rate limiting (quote form)
+# ---------------------------------------------------------------------------
+class RateLimiter:
+    def __init__(self, max_hits: int, per_seconds: int):
+        self.max_hits, self.per = max_hits, per_seconds
+        self.hits: dict[str, deque] = defaultdict(deque)
+        self.lock = threading.Lock()
+
+    def allow(self, key: str) -> bool:
+        t = time.monotonic()
+        with self.lock:
+            q = self.hits[key]
+            while q and t - q[0] > self.per:
+                q.popleft()
+            if len(q) >= self.max_hits:
+                return False
+            q.append(t)
+            return True
+
+
+# ---------------------------------------------------------------------------
 # HTTP
 # ---------------------------------------------------------------------------
 PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8">
@@ -138,8 +161,40 @@ button{{background:#1d232b;color:#fff;border:0;padding:12px 20px;border-radius:8
 
 
 def make_handler(cfg: Config):
+    quote_limiter = RateLimiter(max_hits=5, per_seconds=3600)
+
     class Handler(BaseHTTPRequestHandler):
         server_version = "agency"
+
+        def _client_ip(self) -> str:
+            # behind Caddy/nginx the real visitor IP is the first X-Forwarded-For entry
+            fwd = self.headers.get("X-Forwarded-For", "")
+            return fwd.split(",")[0].strip() or self.client_address[0]
+
+        def _quote(self, path: str, body: bytes):
+            parts = path.strip("/").split("/")  # quote/<lead_id>/<token>
+            if len(parts) != 3 or not parts[1].isdigit() or not verify_quote(int(parts[1]), parts[2], cfg.app_secret):
+                return self._send(404, PAGE.format(title="Not found", body="<p>This form is not active.</p>"))
+            lead_id = int(parts[1])
+            db = self._db()
+            lead = db.get_lead(lead_id)
+            back = escape(lead["preview_url"]) if lead and lead["preview_url"] else ""
+            back_link = f"<p><a href='{back}'>&larr; Back to the website</a></p>" if back.startswith("http") else ""
+            if not quote_limiter.allow(f"{self._client_ip()}:{lead_id}"):
+                return self._send(429, PAGE.format(title="Slow down", body=(
+                    "<h1>Too many requests</h1><p>Please try again later or call directly.</p>" + back_link)))
+            form = {k: v[0] for k, v in parse_qs(body.decode(errors="ignore")).items()}
+            try:
+                submit_quote(db, cfg, lead_id, form)
+            except QuoteError as exc:
+                if str(exc) == "spam":  # pretend success so bots learn nothing
+                    return self._send(200, PAGE.format(title="Thanks", body="<h1>Thanks!</h1>" + back_link))
+                return self._send(400, PAGE.format(title="Please check the form", body=(
+                    f"<h1>Almost there</h1><p>{escape(str(exc))}</p>"
+                    "<p><a href='javascript:history.back()'>&larr; Go back and fix it</a></p>")))
+            name = escape(lead["business_name"])
+            return self._send(200, PAGE.format(title="Request sent", body=(
+                f"<h1>Thanks, your request was sent!</h1><p>{name} will get back to you soon.</p>" + back_link)))
 
         def log_message(self, fmt, *args):  # route through logging, no PII in query strings
             log.info("%s %s -> %s", self.command, urlparse(self.path).path, args[1] if len(args) > 1 else "")
@@ -183,6 +238,8 @@ def make_handler(cfg: Config):
             u = urlparse(self.path)
             length = min(int(self.headers.get("Content-Length") or 0), 1_000_000)
             body = self.rfile.read(length)
+            if u.path.startswith("/quote/"):
+                return self._quote(u.path, body)
             if u.path == "/stripe/webhook":
                 if not verify_stripe_signature(body, self.headers.get("Stripe-Signature", ""),
                                                cfg.stripe_webhook_secret):

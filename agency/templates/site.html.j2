@@ -25,6 +25,13 @@
   .contact { background: var(--ink); color: #fff; }
   .contact a { color: #fff; }
   footer { padding: 24px 0; font-size: .85rem; color: var(--muted); }
+  .quote { background: var(--soft); }
+  .quote form { display: grid; gap: 12px; max-width: 560px; }
+  .quote label { font-weight: 600; font-size: .95rem; }
+  .quote input, .quote textarea, .quote select { width: 100%; padding: 12px; border: 1px solid #cfd5dc; border-radius: 8px; font: inherit; background: #fff; }
+  .quote textarea { min-height: 120px; }
+  .quote button { border: 0; cursor: pointer; font-size: 1rem; }
+  .hp { position: absolute; left: -9999px; height: 0; overflow: hidden; }
   .preview-bar { background: #fff3cd; color: #664d03; text-align: center; padding: 8px; font-size: .9rem; }
 </style>
 </head>
@@ -39,6 +46,7 @@
   <h1>{{ copy.headline }}</h1>
   <p>{{ copy.tagline }}</p>
   {% if lead.phone %}<a class="btn" href="tel:{{ lead.phone|replace(' ', '') }}">{{ copy.cta }}</a>{% endif %}
+  {% if quote_action %}<a class="btn" style="background:var(--ink);margin-left:8px" href="#quote">Get a free quote</a>{% endif %}
 </div></div>
 
 <section><div class="wrap">
@@ -55,6 +63,26 @@
   <p>{{ copy.about }}</p>
   {% if lead.rating %}<p><strong>{{ lead.rating }}★</strong>{% if lead.review_count %} from {{ lead.review_count }} reviews{% endif %}</p>{% endif %}
 </div></section>
+
+{% if quote_action %}
+<section class="quote" id="quote"><div class="wrap">
+  <h2>Get a Free Quote</h2>
+  <p>Tell us what you need and we'll get back to you quickly.</p>
+  <form method="post" action="{{ quote_action }}">
+    <div><label for="q-name">Name</label><input id="q-name" name="name" required maxlength="100" autocomplete="name"></div>
+    <div><label for="q-phone">Phone</label><input id="q-phone" name="phone" type="tel" maxlength="40" autocomplete="tel"></div>
+    <div><label for="q-email">Email</label><input id="q-email" name="email" type="email" maxlength="200" autocomplete="email"></div>
+    <div><label for="q-service">Service</label>
+      <select id="q-service" name="service">
+        {% for s in copy.services %}<option>{{ s.name }}</option>{% endfor %}
+        <option>Something else</option>
+      </select></div>
+    <div><label for="q-msg">Details</label><textarea id="q-msg" name="message" maxlength="3000"></textarea></div>
+    <div class="hp" aria-hidden="true"><label for="q-web">Website</label><input id="q-web" name="website" tabindex="-1" autocomplete="off"></div>
+    <button class="btn" type="submit">Request my free quote</button>
+  </form>
+</div></section>
+{% endif %}
 
 <section class="contact"><div class="wrap">
   <h2>Contact</h2>

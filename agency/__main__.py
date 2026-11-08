@@ -39,6 +39,7 @@ def main(argv: list[str] | None = None) -> int:
     ad = sub.add_parser("addon-activate", help="manually activate an add-on for a client")
     ad.add_argument("lead_id", type=int)
     ad.add_argument("addon", choices=[a.key for a in CATALOG])
+    sub.add_parser("rebuild-clients", help="rebuild + redeploy every client site (e.g. after setting PUBLIC_URL)")
     rp = sub.add_parser("preview-report", help="print last month's report for a client")
     rp.add_argument("lead_id", type=int)
     sub.add_parser("obsidian-sync", help="write CRM notes + dashboard into the Obsidian vault")
@@ -102,6 +103,13 @@ def main(argv: list[str] | None = None) -> int:
     elif args.cmd == "addon-activate":
         ok = UpsellBot(db, config).activate(args.lead_id, args.addon)
         print(f"{args.addon} {'activated' if ok else 'was already active'} for lead {args.lead_id}")
+    elif args.cmd == "rebuild-clients":
+        orch = Orchestrator(db, config)
+        clients = db.leads_by_status("client")
+        for row in clients:
+            orch.builder.build(dict(row), preview=False)
+        n = orch.deployer.run(statuses=("client",), next_status="client")
+        print(f"rebuilt {len(clients)} client sites, redeployed {n}")
     elif args.cmd == "preview-report":
         from datetime import date
         lead = db.get_lead(args.lead_id)

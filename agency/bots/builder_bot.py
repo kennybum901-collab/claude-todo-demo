@@ -13,6 +13,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from ..config import Config
 from ..copywriter import generate_copy
 from ..db import DB
+from ..quotes import form_action
 
 log = logging.getLogger(__name__)
 TEMPLATES = Path(__file__).resolve().parent.parent / "templates"
@@ -44,6 +45,8 @@ class BuilderBot:
         return self.env.get_template("site.html.j2").render(
             lead=lead, copy=copy, cfg=self.cfg, color=color, preview=preview,
             payment_url=lead.get("payment_url"), year=date.today().year,
+            # the quote form only goes on paying clients' sites, never on previews
+            quote_action=None if preview else form_action(lead["id"], self.cfg),
             schema_json=json.dumps({k: v for k, v in schema.items() if v}).replace("</", "<\\/"),
         )
 

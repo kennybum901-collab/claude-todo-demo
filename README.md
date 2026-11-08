@@ -27,6 +27,7 @@ See **[vault/Business Plan.md](vault/Business%20Plan.md)** for the offer, pricin
 | Obsidian sync | `agency/obsidian.py` | Writes one CRM note per lead, a live Dashboard and a daily log into your vault; reads `do_not_contact` flags back |
 | Mailer | `agency/mailer.py` | Rotates sends across multiple inboxes with per-inbox caps, warm-up ramps, sticky threads and auto-pause on bounces |
 | Server | `agency/server.py` | `agency serve`: bots on a schedule, Stripe webhooks, one-click unsubscribe, `/health` |
+| Quote form | `agency/quotes.py` | "Get a free quote" form on client sites; requests are emailed to the owner instantly (Reply-To = customer) and counted in reports |
 | Orchestrator | `agency/orchestrator.py` | Runs everything in order; one failing bot never stops the rest |
 
 ## Quick start (safe: dry-run)
@@ -134,6 +135,7 @@ Without `senders.json`, the single `SMTP_*` settings and `DAILY_EMAIL_CAP` are u
 - **Preview cleanup:** Netlify previews for `unsubscribed` and `lost` leads are deleted automatically.
 - **Upsells:** 60 days after a client's first payment (`UPSELL_AFTER_DAYS`), they get one add-on offer at a time, at most every 30 days (`UPSELL_GAP_DAYS`). Salons get booking first and trades get reviews first. Each add-on is a separate subscription the client explicitly buys. Add-on MRR shows in `report` and on the Dashboard. Edit `CATALOG` in `agency/bots/upsell_bot.py` to change offers and prices. Activate a deal closed by phone with `python -m agency addon-activate <lead_id> <addon>`. A client who replies STOP stops getting offers but stays a client.
 - **Monthly client reports:** on `REPORT_DAY` (default the 1st), every client gets a report on the previous month covering uptime %, outages handled, average load time, work done, their plan and add-ons, and one suggested next add-on. Each client gets one per month, only after a full month as a client, and reports go out before cold outreach so clients get inbox capacity first. Copies land in `vault/Reports/`. Preview one with `python -m agency preview-report <lead_id>`.
+- **Quote form on client sites:** once `PUBLIC_URL` and `APP_SECRET` are set, every paying client's site gets a *Get a free quote* form (never on previews). Submissions go to `agency serve`, are stored, and are emailed to the owner right away with Reply-To set to the customer. These notices skip the cold-email cap but never use a paused inbox. Spam protection: signed per-site URL, honeypot field, length limits, and 5 requests per visitor per hour. The count appears in the monthly report ("3 quote requests came in through your website"), in add-on offers and in Obsidian. Phone-only clients' requests are flagged on the Dashboard so you can forward them. After first setting `PUBLIC_URL`, run `python -m agency rebuild-clients` to add the form to existing sites.
 - **Automatic DB migration:** existing databases get new columns on startup.
 
 ## Tests
