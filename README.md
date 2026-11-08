@@ -32,6 +32,7 @@ See **[vault/Business Plan.md](vault/Business%20Plan.md)** for the offer, pricin
 | Edit bot | `agency/edits.py` | Turns client emails ("new hours, new phone") into drafted site changes; you approve in Obsidian; it rebuilds, redeploys and confirms to the client |
 | Win-back bot | `agency/bots/winback_bot.py` | Second chance with the setup fee waived: 2 emails to cancelled clients (day 30 and 60), 1 final email to silent prospects (day 90); a purchase relaunches the site |
 | Analytics | `agency/analytics.py`, `agency/dashboard.py` | MRR history (base + add-ons), funnel, results by niche and city, revenue per client, churn, lifetime value, plus recommendations: an interactive page at `/admin` and `vault/Performance.md` |
+| Lead scoring | `agency/scoring.py` | 0–100 likelihood-to-buy score from your own close rates by niche and city (smoothed) plus rating and review count; orders site building, outreach and the call list |
 | Orchestrator | `agency/orchestrator.py` | Runs everything in order; one failing bot never stops the rest |
 
 ## Quick start (safe: dry-run)
@@ -124,6 +125,7 @@ The vault also ships with `Home`, the `Business Plan` and playbooks (daily routi
 ## Other commands
 
 ```bash
+python -m agency top-leads                 # best leads waiting, with the reason for each score
 python -m agency mark-paid 12              # offline payment (cash / check) → site goes live next run
 python -m agency unsubscribe a@b.com       # do-not-contact, honored forever
 ```
@@ -159,6 +161,7 @@ Without `senders.json`, the single `SMTP_*` settings and `DAILY_EMAIL_CAP` are u
 - **Client self-service edits:** any client email is treated as a possible change request. Claude (with a strict JSON schema) drafts the complete updated site text and only changes what was asked. Allowed fields: headline, tagline, about, services, button text, **hours**, phone and address. You get an `Edits/` note in Obsidian with a before/after table: set `approve: true` (or `reject: true`), or use `python -m agency edits`, `edit-approve <id>` or `edit-reject <id>`. On the next run the site is rebuilt and redeployed (only that site) and the client gets a "your update is live" email. Nothing is published without approval. Photos, logos, design changes, AI failures and setups without an API key are routed to you as `needs_human`.
 - **Win-back:** cancelled clients get two emails (`WINBACK_CHURN_DAYS`, default 30, then 30 days later) offering to relaunch their saved site with no setup fee, mentioning the quote requests it brought in. Prospects who never replied get exactly one final email after `WINBACK_LOST_DAYS` (90), then never again. Each offer is a monthly-only Stripe link. Paying (by webhook or polling) relaunches the site through normal onboarding, and a late cancellation notice for a won-back client's *old* subscription is ignored. Suppressed, bounced and unsubscribed contacts are never emailed. Results appear in `report` and on the Dashboard.
 - **Performance dashboard:** set `ADMIN_PASSWORD` and open `https://<your server>/admin` (user `admin`), or run `python -m agency dashboard` for `data/dashboard.html`. It shows MRR and its 30-day change, clients, revenue per client, churn, lifetime value (only once churn is measurable), a 12-month MRR chart split into base and add-ons (reconstructed from payments, cancellations and win-backs), the sales funnel, and close rate and MRR per niche and city. "What to do next" recommendations wait until a segment has 20+ emailed leads. The page loads nothing from the internet (inline SVG), works in light and dark mode, has hover tooltips and a table view, and works on phones. The same numbers are written to `vault/Performance.md` on every run.
+- **Lead scoring:** every run, each open lead gets a 0–100 score: your close rate for its niche × its city's lift × a reputation factor (rating and review count). Rates are smoothed with 20 pseudo-leads, so one lucky sale doesn't skew things, and they start from a 3% default before you have data. Sites are built and first emails sent **highest score first**. Follow-ups always go before new first emails. `MIN_LEAD_SCORE` stops weak leads from ever being cold-emailed; they stay on the call list instead. See `python -m agency top-leads`. The score and its reason show in each Obsidian lead note, and the Dashboard lists the best leads not yet emailed.
 - **Automatic DB migration:** existing databases get new columns on startup.
 
 ## Tests

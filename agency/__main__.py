@@ -33,6 +33,8 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("backup", help="back up the database now")
     sub.add_parser("dashboard", help="write the performance dashboard to data/dashboard.html")
     sub.add_parser("report", help="show pipeline + revenue metrics")
+    tl = sub.add_parser("top-leads", help="show the highest-scoring leads not yet emailed")
+    tl.add_argument("-n", type=int, default=15)
     sub.add_parser("call-list", help="print phone-only leads to call (CSV)")
     pr = sub.add_parser("preview-email", help="print the email a lead would receive")
     pr.add_argument("lead_id", type=int)
@@ -106,12 +108,19 @@ def main(argv: list[str] | None = None) -> int:
             for v in stats:
                 print(f"  {v['variant']}: {v['sent']:>4} sent  {v['reply_rate']:>6.1%} replied  "
                       f"{v['win_rate']:>6.1%} won")
+    elif args.cmd == "top-leads":
+        from .scoring import LeadScorer
+        LeadScorer(db, config).score_all()
+        for r in db.leads_by_status("new", "built", "deployed", limit=args.n, by_score=True):
+            print(f"{r['score'] or 0:>3}  #{r['id']:<5} {r['business_name'][:32]:<32} {r['score_reason'] or ''}")
     elif args.cmd == "call-list":
         w = csv.writer(sys.stdout)
-        w.writerow(["id", "business_name", "phone", "city", "preview_url", "payment_url"])
-        for r in db.leads_by_status("built", "deployed"):
-            if r["phone"] and not r["email"]:
-                w.writerow([r["id"], r["business_name"], r["phone"], r["city"],
+        from .scoring import LeadScorer
+        LeadScorer(db, config).score_all()
+        w.writerow(["id", "score", "business_name", "phone", "city", "preview_url", "payment_url"])
+        for r in db.leads_by_status("built", "deployed", by_score=True):  # best first
+            if r["phone"] and (not r["email"] or (r["score"] or 0) < config.min_lead_score):
+                w.writerow([r["id"], r["score"], r["business_name"], r["phone"], r["city"],
                             r["preview_url"], r["payment_url"]])
     elif args.cmd == "preview-email":
         lead = db.get_lead(args.lead_id)

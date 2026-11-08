@@ -68,7 +68,7 @@ class BuilderBot:
 
     def run(self, limit: int = 50) -> int:
         built = 0
-        for row in self.db.leads_by_status("new", limit=limit):
+        for row in self.db.leads_by_status("new", limit=limit, by_score=True):  # best leads first
             lead = dict(row)
             try:
                 out = self.build(lead)

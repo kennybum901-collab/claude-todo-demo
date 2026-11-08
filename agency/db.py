@@ -36,6 +36,8 @@ CREATE TABLE IF NOT EXISTS leads (
     notes           TEXT,
     variant         TEXT,
     sender          TEXT,
+    score           INTEGER,
+    score_reason    TEXT,
     last_reply      TEXT,
     reply_draft     TEXT,
     subscription_id TEXT,
@@ -149,7 +151,8 @@ class DB:
     # columns added after the first release; ALTER existing databases in place
     MIGRATIONS = {
         "leads": {"variant": "TEXT", "last_reply": "TEXT", "reply_draft": "TEXT",
-                  "subscription_id": "TEXT", "sender": "TEXT"},
+                  "subscription_id": "TEXT", "sender": "TEXT", "score": "INTEGER",
+                  "score_reason": "TEXT"},
         "events": {"sender": "TEXT"},
     }
 
@@ -192,10 +195,11 @@ class DB:
     def get_lead(self, lead_id: int) -> sqlite3.Row | None:
         return self.conn.execute("SELECT * FROM leads WHERE id = ?", (lead_id,)).fetchone()
 
-    def leads_by_status(self, *statuses: str, limit: int = 1000) -> list[sqlite3.Row]:
+    def leads_by_status(self, *statuses: str, limit: int = 1000, by_score: bool = False) -> list[sqlite3.Row]:
         marks = ", ".join("?" for _ in statuses)
+        order = "COALESCE(score, -1) DESC, id" if by_score else "id"
         return self.conn.execute(
-            f"SELECT * FROM leads WHERE status IN ({marks}) ORDER BY id LIMIT ?",
+            f"SELECT * FROM leads WHERE status IN ({marks}) ORDER BY {order} LIMIT ?",
             (*statuses, limit),
         ).fetchall()
 

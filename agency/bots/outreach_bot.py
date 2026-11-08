@@ -101,7 +101,9 @@ class OutreachBot:
             return 0
         sent = 0
         try:
-            for row in self.db.leads_by_status("deployed", "contacted"):
+            # follow-ups first (they're owed), then first emails, highest score first
+            queue = self.db.leads_by_status("contacted") + self.db.leads_by_status("deployed", by_score=True)
+            for row in queue:
                 lead = dict(row)
                 if not lead["email"]:
                     continue  # phone-only lead -> appears in `call-list`
@@ -111,6 +113,8 @@ class OutreachBot:
                 step = self._due(lead)
                 if step is None:
                     continue
+                if step == 0 and lead.get("score") is not None and lead["score"] < self.cfg.min_lead_score:
+                    continue  # weak lead: never cold-emailed (still on the call list)
                 if self.live and not (
                     (lead["preview_url"] or "").startswith("https://")
                     and not (lead["payment_link_id"] or "").startswith("dry_")

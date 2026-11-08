@@ -24,6 +24,7 @@ from .db import DB
 from .edits import EditBot
 from .mailer import Mailer
 from .obsidian import ObsidianSync
+from .scoring import LeadScorer
 
 log = logging.getLogger(__name__)
 
@@ -72,6 +73,7 @@ class Orchestrator:
             summary["edit_decisions"] = self._step("approvals", self.obsidian.pull_edit_decisions)
         summary |= {
             "leads": self._step("leads", self.leads.run),
+            "scored": self._step("score", lambda: LeadScorer(self.db, self.cfg).score_all()),
             "links": self._step("links", self.billing.create_links),
             "built": self._step("build", self.builder.run),
             "deployed": self._step("deploy", self.deployer.run),

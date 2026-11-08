@@ -161,6 +161,7 @@ class ObsidianSync:
             "reviews": row["review_count"],
             "preview_url": row["preview_url"],
             "payment_url": row["payment_url"],
+            "score": row["score"],
             "followups_sent": row["followups_sent"],
             "subject_variant": row["variant"],
             "last_contacted": (row["last_contacted"] or "")[:10] or None,
@@ -304,6 +305,7 @@ class ObsidianSync:
             "WHERE q.notified = 0 GROUP BY l.id").fetchall()
         from .bots.winback_bot import WinbackBot
         wb = WinbackBot(self.db, self.cfg, mailer=self.mailer).stats()
+        top_leads = self.db.leads_by_status("new", "built", "deployed", limit=10, by_score=True)
         ab = self.db.variant_stats()
         ab_table = "\n".join(
             f"| {v['variant']} | {v['sent']} | {v['replies']} ({v['reply_rate']:.1%}) | {v['wins']} ({v['win_rate']:.1%}) |"
@@ -363,6 +365,9 @@ updated: "{stamp}"
 ## 🔁 Win-back
 {wb['contacted']} people contacted · **{wb['recovered']} won back**
 
+## 🎯 Best leads not yet emailed
+{chr(10).join(f"- **{r['score']}** [[{note_name(r)}]] · {r['score_reason'] or ''}" for r in top_leads) or "- None waiting"}
+
 ## 🧪 Subject line A/B test
 | Variant | Sent | Replies | Wins |
 |---|---|---|---|
@@ -375,9 +380,9 @@ updated: "{stamp}"
 
 ## Live views (needs the Dataview community plugin)
 ```dataview
-TABLE status, niche, city, rating, followups_sent AS "follow-ups", last_contacted
+TABLE score, status, niche, city, rating, followups_sent AS "follow-ups", last_contacted
 FROM "Leads"
-SORT updated DESC
+SORT score DESC
 ```
 
 See also: [[Performance]] · [[Home]] · [[Business Plan]] · [[Playbooks/Closing a Reply]]

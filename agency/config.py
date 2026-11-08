@@ -56,6 +56,7 @@ class Config:
     daily_email_cap: int = _int("DAILY_EMAIL_CAP", 30)
     followup_days: int = _int("FOLLOWUP_DAYS", 4)
     max_followups: int = _int("MAX_FOLLOWUPS", 2)
+    min_lead_score: int = _int("MIN_LEAD_SCORE", 0)   # leads scoring below this are never cold-emailed
     # Multi-inbox sending (see senders.example.json); falls back to SMTP_* below
     senders_file: Path = Path(os.environ.get("SENDERS_FILE") or ROOT / "senders.json")
     bounce_pause_rate: float = float(os.environ.get("BOUNCE_PAUSE_RATE", "0.05"))
