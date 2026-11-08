@@ -1,6 +1,9 @@
+---
+tags: agency/plan
+---
 # Northstar Web Studio: Business Plan
 
-> Rename the company with `COMPANY_NAME` in `.env`. The plan is the same whatever you call it.
+> Rename the company with `COMPANY_NAME` in `.env`. The plan is the same whatever you call it. Related: [[Home]] · [[Dashboard]] · [[Playbooks/Daily Routine]]
 
 ## 1. The offer
 

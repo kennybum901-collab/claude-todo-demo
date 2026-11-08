@@ -2,3 +2,9 @@
 data/
 __pycache__/
 *.pyc
+# Obsidian: generated CRM data contains prospect contact info, keep it out of git
+vault/Leads/
+vault/Daily/
+vault/Dashboard.md
+vault/.obsidian/workspace*.json
+vault/.obsidian/plugins/

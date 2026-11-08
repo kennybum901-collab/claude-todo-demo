@@ -12,6 +12,7 @@ from .bots.lead_bot import LeadBot
 from .bots.outreach_bot import OutreachBot
 from .config import config
 from .db import DB
+from .obsidian import ObsidianSync
 from .orchestrator import Orchestrator
 
 
@@ -30,6 +31,7 @@ def main(argv: list[str] | None = None) -> int:
     mp = sub.add_parser("mark-paid", help="record an offline payment (cash/check/Zelle)")
     mp.add_argument("lead_id", type=int)
     mp.add_argument("--amount", type=int, default=None, help="amount in cents")
+    sub.add_parser("obsidian-sync", help="write CRM notes + dashboard into the Obsidian vault")
     un = sub.add_parser("unsubscribe", help="add an email to the do-not-contact list")
     un.add_argument("email")
     args = p.parse_args(argv)
@@ -71,6 +73,9 @@ def main(argv: list[str] | None = None) -> int:
         amount = args.amount or config.setup_fee_cents + config.monthly_fee_cents
         BillingBot(db, config).mark_paid(args.lead_id, f"manual_{args.lead_id}", amount, config.currency)
         print(f"lead {args.lead_id} marked paid; it will go live on the next `run`")
+    elif args.cmd == "obsidian-sync":
+        result = ObsidianSync(db, config).run()
+        print(f"{result} -> {config.obsidian_vault}")
     elif args.cmd == "unsubscribe":
         db.suppress(args.email, "manual")
         print(f"{args.email} will never be contacted")

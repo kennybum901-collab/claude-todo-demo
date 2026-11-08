@@ -60,6 +60,9 @@ class Config:
     # --- Storage ---
     db_path: Path = Path(os.environ.get("DB_PATH", ROOT / "data" / "agency.db"))
     build_dir: Path = Path(os.environ.get("BUILD_DIR", ROOT / "data" / "sites"))
+    # Obsidian vault the bots write the CRM into (set to your own vault path)
+    obsidian_vault: Path = Path(os.environ.get("OBSIDIAN_VAULT") or ROOT / "vault")
+    obsidian_enabled: bool = _bool("OBSIDIAN_SYNC", True)
 
     # --- Integrations (all optional; bots degrade gracefully without them) ---
     google_places_key: str = os.environ.get("GOOGLE_PLACES_API_KEY", "")

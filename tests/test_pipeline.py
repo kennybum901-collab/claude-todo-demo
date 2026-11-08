@@ -19,6 +19,7 @@ SAMPLE = Path(__file__).resolve().parent.parent / "sample_leads.csv"
 def env(tmp_path):
     cfg = replace(Config(), dry_run=True, use_ai_copy=False, google_places_key="",
                   db_path=tmp_path / "t.db", build_dir=tmp_path / "sites",
+                  obsidian_vault=tmp_path / "vault",
                   imap_host="", daily_email_cap=30)
     db = DB(cfg.db_path)
     return db, cfg
