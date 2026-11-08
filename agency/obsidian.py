@@ -380,9 +380,76 @@ FROM "Leads"
 SORT updated DESC
 ```
 
-See also: [[Home]] · [[Business Plan]] · [[Playbooks/Closing a Reply]]
+See also: [[Performance]] · [[Home]] · [[Business Plan]] · [[Playbooks/Closing a Reply]]
 """
         (self.vault / "Dashboard.md").write_text(text, encoding="utf-8")
+
+    def write_performance(self) -> None:
+        from .analytics import Analytics
+
+        snap = Analytics(self.db, self.cfg).snapshot()
+        k = snap.kpis
+        hist = snap.mrr_history
+        labels = ", ".join(f'"{h["label"]}"' for h in hist)
+        totals = ", ".join(str(round((h["base"] + h["addons"]) / 100)) for h in hist)
+        top = max([(h["base"] + h["addons"]) / 100 for h in hist] + [100])
+        def rate(x):
+            return "" if x is None else f"{x:.0%}"
+
+        funnel = "\n".join(f"| {f['stage']} | {f['count']:,} | {rate(f['rate_from_prev'])} |" for f in snap.funnel)
+
+        def seg(rows):
+            lines = []
+            for r in rows:
+                close = f"{r['close_rate']:.1%}" if r["emailed"] else "–"
+                flag = "" if r["enough_data"] else "*"
+                lines.append(f"| {r['segment']} | {r['leads']} | {r['emailed']} | {close}{flag} | "
+                             f"{r['clients']} | {_money(r['mrr_cents'])} |")
+            return "\n".join(lines) or "| – | 0 | 0 | – | 0 | $0 |"
+
+        churn = "–" if k["churn_rate_30d"] is None else f"{k['churn_rate_30d']:.1%}"
+        ltv = "–" if k["ltv_cents"] is None else _money(k["ltv_cents"])
+        text = f"""---
+tags: agency/performance
+updated: "{snap.generated_at}"
+---
+# 📈 Performance
+*Auto-updated every run · interactive version: `/admin` on your server or `python -m agency dashboard`*
+
+| MRR | Change (30d) | Clients | Revenue / client | Churn (30d) | Lifetime value |
+|---|---|---|---|---|---|
+| **{_money(k['mrr_cents'])}** | {'+' if k['mrr_change_cents'] >= 0 else '-'}{_money(abs(k['mrr_change_cents']))} | {k['clients']} | {_money(k['arpu_cents'])} | {churn} | {ltv} |
+
+## What to do next
+{chr(10).join('- ' + r for r in snap.recommendations)}
+
+## Monthly recurring revenue
+```mermaid
+xychart-beta
+    title "MRR, last 12 months ($)"
+    x-axis [{labels}]
+    y-axis "MRR ($)" 0 --> {int(top * 1.1) + 1}
+    bar [{totals}]
+```
+
+## Sales funnel
+| Stage | Leads | From previous |
+|---|---|---|
+{funnel}
+
+## By niche
+| Niche | Leads | Emailed | Close rate | Clients | MRR |
+|---|---|---|---|---|---|
+{seg(snap.by_niche)}
+
+## By city
+| City | Leads | Emailed | Close rate | Clients | MRR |
+|---|---|---|---|---|---|
+{seg(snap.by_city)}
+
+Close rates marked * are based on fewer than 20 emailed leads: too early to judge. Back to [[Dashboard]]
+"""
+        (self.vault / "Performance.md").write_text(text, encoding="utf-8")
 
     def write_daily(self) -> None:
         today = datetime.now(timezone.utc).date().isoformat()
@@ -410,6 +477,7 @@ See also: [[Home]] · [[Business Plan]] · [[Playbooks/Closing a Reply]]
         written = self.write_leads()
         self.write_edits()
         self.write_dashboard()
+        self.write_performance()
         self.write_daily()
         return written
 

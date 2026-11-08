@@ -6,6 +6,7 @@ tags: agency/home
 Open this folder as a vault in Obsidian (**Open folder as vault → `vault/`**), or set `OBSIDIAN_VAULT=/path/to/your/vault` in `.env` so the bots write into your existing vault.
 
 ## Start here
+- [[Performance]]: MRR trend, funnel, best niches and cities, what to do next
 - [[Dashboard]]: MRR, pipeline, replies waiting for you, sites down (updated every bot run)
 - [[Business Plan]]: offer, pricing, funnel math, scaling roadmap
 - `Leads/`: one CRM note per business (properties + full bot activity timeline)

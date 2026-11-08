@@ -12,6 +12,7 @@ docker-compose.yml.
 """
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
 import json
@@ -216,6 +217,16 @@ def make_handler(cfg: Config):
             self.end_headers()
             self.wfile.write(data)
 
+        def _admin_ok(self) -> bool:
+            auth = self.headers.get("Authorization", "")
+            if not auth.startswith("Basic "):
+                return False
+            try:
+                user, _, pw = base64.b64decode(auth[6:]).decode().partition(":")
+            except (ValueError, UnicodeDecodeError):
+                return False
+            return hmac.compare_digest(user, "admin") & hmac.compare_digest(pw, cfg.admin_password)
+
         def _db(self) -> DB:
             return DB(cfg.db_path)  # one connection per request: sqlite objects aren't thread-safe
 
@@ -230,6 +241,19 @@ def make_handler(cfg: Config):
                     "SELECT MAX(created_at) FROM events WHERE kind = 'heartbeat'").fetchone()[0]
                 self._send(200, json.dumps({"ok": True, "dry_run": cfg.dry_run, "last_event": last,
                                             "last_heartbeat": beat}), "application/json")
+            elif u.path in ("/admin", "/admin/"):
+                if not cfg.admin_password:
+                    return self._send(404, PAGE.format(title="Not found", body="<p>Not found.</p>"))
+                if not self._admin_ok():
+                    self.send_response(401)
+                    self.send_header("WWW-Authenticate", 'Basic realm="agency admin"')
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
+                    return
+                from .analytics import Analytics
+                from .dashboard import render
+                html = render(Analytics(self._db(), cfg).snapshot(), cfg.company_name)
+                self._send(200, html)
             elif u.path == "/unsubscribe":
                 q = parse_qs(u.query)
                 email, tok = q.get("e", [""])[0], q.get("t", [""])[0]

@@ -31,6 +31,7 @@ def main(argv: list[str] | None = None) -> int:
     sv.add_argument("--no-bots", action="store_true", help="only serve HTTP, don't run the pipeline")
     sub.add_parser("supervise", help="24/7 mode: run `serve`, auto-restart on crash/hang, alerts, daily backups")
     sub.add_parser("backup", help="back up the database now")
+    sub.add_parser("dashboard", help="write the performance dashboard to data/dashboard.html")
     sub.add_parser("report", help="show pipeline + revenue metrics")
     sub.add_parser("call-list", help="print phone-only leads to call (CSV)")
     pr = sub.add_parser("preview-email", help="print the email a lead would receive")
@@ -73,6 +74,12 @@ def main(argv: list[str] | None = None) -> int:
     elif args.cmd == "serve":
         from .server import serve
         serve(config, run_bots=not args.no_bots)
+    elif args.cmd == "dashboard":
+        from .analytics import Analytics
+        from .dashboard import render
+        out = config.db_path.parent / "dashboard.html"
+        out.write_text(render(Analytics(db, config).snapshot(), config.company_name), encoding="utf-8")
+        print(f"dashboard written to {out}")
     elif args.cmd == "import-csv":
         print(f"imported {LeadBot(db, config).import_csv(args.path)} leads")
     elif args.cmd == "report":

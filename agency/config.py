@@ -81,6 +81,7 @@ class Config:
     run_every_minutes: int = _int("RUN_EVERY_MINUTES", 60)
     stripe_webhook_secret: str = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
     app_secret: str = os.environ.get("APP_SECRET", "")                 # signs unsubscribe links
+    admin_password: str = os.environ.get("ADMIN_PASSWORD", "")         # /admin dashboard (user: admin)
 
     # --- 24/7 supervisor (python -m agency supervise) ---
     alert_webhook_url: str = os.environ.get("ALERT_WEBHOOK_URL", "")   # Slack / Discord / ntfy.sh
