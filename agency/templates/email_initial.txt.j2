@@ -1,0 +1,22 @@
+Subject: I built a website for {{ lead.business_name }}
+Hi {{ lead.business_name }} team,
+
+{{ opener or ("I noticed " ~ lead.business_name ~ " doesn't have a website yet.") }}
+
+So I went ahead and built one for you, free to look at, no obligation:
+{{ lead.preview_url }}
+
+If you like it, it can be live on your own domain this week:
+  - {{ setup }} one-time setup (custom domain, edits to match your brand)
+  - {{ monthly }}/month for hosting, security, updates and small changes
+  - Cancel anytime
+
+Claim it here: {{ lead.payment_url }}
+Or just reply with any changes you'd like.
+
+{{ cfg.owner_name }}
+{{ cfg.company_name }} | {{ cfg.company_url }}
+
+--
+{{ cfg.company_name }}, {{ cfg.company_address }}
+Not interested? Reply "STOP" and you won't hear from me again.

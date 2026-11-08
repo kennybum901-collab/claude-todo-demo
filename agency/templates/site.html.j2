@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ lead.business_name }}{% if lead.city %} | {{ lead.niche|title }} in {{ lead.city }}{% endif %}</title>
+<meta name="description" content="{{ copy.tagline }}">
+<script type="application/ld+json">{{ schema_json }}</script>
+<style>
+  :root { --brand: {{ color }}; --ink: #1d232b; --muted: #5b6672; --bg: #fff; --soft: #f4f6f8; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--ink); background: var(--bg); line-height: 1.6; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 20px; }
+  header { padding: 18px 0; border-bottom: 1px solid #e6e9ed; }
+  header .wrap { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .logo { font-weight: 800; font-size: 1.25rem; }
+  .btn { display: inline-block; background: var(--brand); color: #fff; padding: 12px 22px; border-radius: 8px; text-decoration: none; font-weight: 700; }
+  .hero { padding: 80px 0 64px; background: linear-gradient(135deg, var(--soft), #fff); }
+  .hero h1 { font-size: clamp(2rem, 5vw, 3.2rem); line-height: 1.15; margin: 0 0 12px; }
+  .hero p { font-size: 1.2rem; color: var(--muted); max-width: 620px; }
+  section { padding: 56px 0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; }
+  .card { background: var(--soft); border-radius: 12px; padding: 24px; }
+  .card h3 { margin-top: 0; color: var(--brand); }
+  .contact { background: var(--ink); color: #fff; }
+  .contact a { color: #fff; }
+  footer { padding: 24px 0; font-size: .85rem; color: var(--muted); }
+  .preview-bar { background: #fff3cd; color: #664d03; text-align: center; padding: 8px; font-size: .9rem; }
+</style>
+</head>
+<body>
+{% if preview %}<div class="preview-bar">Free preview built for {{ lead.business_name }} by {{ cfg.company_name }} — <a href="{{ payment_url or cfg.company_url }}">claim this site</a></div>{% endif %}
+<header><div class="wrap">
+  <div class="logo">{{ lead.business_name }}</div>
+  {% if lead.phone %}<a class="btn" href="tel:{{ lead.phone|replace(' ', '') }}">Call {{ lead.phone }}</a>{% endif %}
+</div></header>
+
+<div class="hero"><div class="wrap">
+  <h1>{{ copy.headline }}</h1>
+  <p>{{ copy.tagline }}</p>
+  {% if lead.phone %}<a class="btn" href="tel:{{ lead.phone|replace(' ', '') }}">{{ copy.cta }}</a>{% endif %}
+</div></div>
+
+<section><div class="wrap">
+  <h2>Our Services</h2>
+  <div class="grid">
+  {% for s in copy.services %}
+    <div class="card"><h3>{{ s.name }}</h3><p>{{ s.description }}</p></div>
+  {% endfor %}
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2>About Us</h2>
+  <p>{{ copy.about }}</p>
+  {% if lead.rating %}<p><strong>{{ lead.rating }}★</strong>{% if lead.review_count %} from {{ lead.review_count }} reviews{% endif %}</p>{% endif %}
+</div></section>
+
+<section class="contact"><div class="wrap">
+  <h2>Contact</h2>
+  {% if lead.phone %}<p>Phone: <a href="tel:{{ lead.phone|replace(' ', '') }}">{{ lead.phone }}</a></p>{% endif %}
+  {% if lead.address %}<p>{{ lead.address }}</p>{% endif %}
+</div></section>
+
+<footer><div class="wrap">© {{ year }} {{ lead.business_name }}. Website by <a href="{{ cfg.company_url }}">{{ cfg.company_name }}</a>.</div></footer>
+</body>
+</html>

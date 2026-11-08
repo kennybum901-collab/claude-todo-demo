@@ -1,0 +1,5 @@
+business_name,niche,city,address,phone,email,rating,review_count
+Rivera Plumbing,plumber,"Austin, TX","410 Oak St, Austin, TX",(512) 555-0141,owner@riveraplumbing.example,4.8,112
+Lone Star Roofing,roofer,"Austin, TX","88 Ridge Rd, Austin, TX",(512) 555-0199,info@lonestarroof.example,4.6,57
+Bella's Hair Studio,hair salon,"Austin, TX","12 Congress Ave, Austin, TX",(512) 555-0110,bella@bellashair.example,4.9,203
+Mike's Lawn Care,landscaper,"Austin, TX",,(512) 555-0177,,4.7,31

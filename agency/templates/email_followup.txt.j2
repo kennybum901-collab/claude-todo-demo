@@ -1,0 +1,16 @@
+Subject: Re: I built a website for {{ lead.business_name }}
+Hi again,
+
+{% if step == 1 %}Just making sure this didn't get buried - the site I made for {{ lead.business_name }} is still up:
+{{ lead.preview_url }}
+
+Most customers search online before calling a {{ lead.niche or "local business" }}. Happy to tweak anything.{% else %}Last note from me. I'll take the preview of {{ lead.business_name }}'s site down soon unless you'd like to keep it:
+{{ lead.preview_url }}{% endif %}
+
+Claim it ({{ setup }} setup + {{ monthly }}/mo): {{ lead.payment_url }}
+
+{{ cfg.owner_name }}, {{ cfg.company_name }}
+
+--
+{{ cfg.company_name }}, {{ cfg.company_address }}
+Reply "STOP" to opt out.
