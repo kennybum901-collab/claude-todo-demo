@@ -37,6 +37,9 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("pause", help="KILL SWITCH: stop all marketing email (outreach, offers, reports)")
     sub.add_parser("resume", help="resume marketing email after `pause`")
     sub.add_parser("qa", help="run quality checks on recent sites and emails")
+    dr = sub.add_parser("doctor", help="check settings and test every connection before going live")
+    dr.add_argument("--offline", action="store_true", help="only check settings, no network calls")
+    dr.add_argument("--json", action="store_true")
     sub.add_parser("report", help="show pipeline + revenue metrics")
     tl = sub.add_parser("top-leads", help="show the highest-scoring leads not yet emailed")
     tl.add_argument("-n", type=int, default=15)
@@ -117,6 +120,12 @@ def main(argv: list[str] | None = None) -> int:
                 bad += 1
                 print(f"email #{m['id']} to {m['to_addr']}: {p}")
         print("all checks passed" if not bad else f"{bad} problem(s)")
+    elif args.cmd == "doctor":
+        from .doctor import Doctor
+        doc = Doctor(config, offline=args.offline)
+        doc.run()
+        print(doc.as_json() if args.json else doc.render())
+        return 1 if doc.r.blocking else 0
     elif args.cmd == "import-csv":
         print(f"imported {LeadBot(db, config).import_csv(args.path)} leads")
     elif args.cmd == "report":

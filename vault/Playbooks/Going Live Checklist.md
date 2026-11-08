@@ -3,6 +3,8 @@ tags: agency/playbook
 ---
 # 🚀 Going Live Checklist
 
+Run `python -m agency doctor` first and after every change below; it tests each item it can and tells you what's missing.
+
 - [ ] Business registered (LLC/EIN), business bank account, Stripe connected
 - [ ] `.env`: real company name, **postal address**, email, URL
 - [ ] 2–3 secondary sending domains with SPF/DKIM/DMARC, one or two inboxes each, listed in `senders.json` with a `warmup_start` date
@@ -17,4 +19,5 @@ tags: agency/playbook
 - [ ] Copy `data/backups/` off the server weekly (or snapshot the VPS)
 - [ ] Uptime monitor pointed at `https://bots.yourstudio.com/health`
 - [ ] (Optional texts) Twilio number registered for A2P 10DLC; incoming webhook set to `https://<server>/twilio/sms`
+- [ ] `python -m agency doctor` shows **✅ Nothing blocks going live**
 - [ ] `DRY_RUN=0`, `DAILY_EMAIL_CAP=20` for week one, then the daemon or cron

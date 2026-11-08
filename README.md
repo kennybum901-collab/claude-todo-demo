@@ -55,6 +55,9 @@ open data/sites/*/index.html       # look at the generated sites
 
 ## Going live
 
+**Start with `python -m agency doctor`.** It checks every setting and tests each connection with a harmless read-only call: SMTP and IMAP login per inbox, Stripe, Netlify, Claude, Google Places, Twilio, Pexels, and your server's `/health`. Nothing is sent or charged. It flags placeholders like `example.com`, weak secrets, a Stripe *test* key in live mode, and half-configured services. It ends with a verdict per feature (ready / warnings / BLOCKED) and the fix for each problem, and exits with code 1 while anything blocks launch. `--offline` checks settings only; `--json` gives machine-readable output.
+
+
 1. **Leads:** create a Google Cloud key with *Places API (New)* enabled and set `GOOGLE_PLACES_API_KEY` and `LEAD_QUERIES`. Places doesn't return emails: phone-only leads go to `python -m agency call-list`. To email them, add their address via CSV import.
 2. **Copy:** set `ANTHROPIC_API_KEY` for AI-written site copy and email openers. Without it, built-in templates are used.
 3. **Hosting:** set `NETLIFY_TOKEN` (Netlify → User settings → Applications → Personal access token).
