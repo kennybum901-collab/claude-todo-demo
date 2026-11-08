@@ -26,6 +26,7 @@ from .edits import EditBot
 from .mailer import Mailer
 from .obsidian import ObsidianSync
 from .referrals import ReferralBot
+from .reviews import ReviewBot
 from .scoring import LeadScorer
 
 log = logging.getLogger(__name__)
@@ -81,6 +82,7 @@ class Orchestrator:
             "deployed": self._step("deploy", self.deployer.run),
             "replies": self._step("inbox", self.outreach.check_inbox),
             "edits": self._step("edits", self.edits.run, self.builder, self.deployer),
+            "reviews": self._step("reviews", ReviewBot(self.db, self.cfg, mailer=self.mailer).run),
             # clients first: reports use inbox capacity before cold outreach does
             "reports": self._step("reports", self.reports.run) if self.cfg.reports_enabled else None,
             "emailed": self._step("outreach", self.outreach.run),

@@ -31,6 +31,7 @@ from .config import Config
 from .db import DB, now
 from .orchestrator import Orchestrator
 from .digest import verify_control
+from .reviews import JOBS_PAGE, ReviewError, has_booster, record_click, request_review, verify_click, verify_jobs
 from .referrals import LANDING, ReferralError, referrer_for_code, submit as submit_referral
 from .quotes import QuoteError, submit as submit_quote, verify as verify_quote
 from .unsubscribe import verify as verify_unsubscribe
@@ -183,6 +184,89 @@ def make_handler(cfg: Config):
             fwd = self.headers.get("X-Forwarded-For", "")
             return fwd.split(",")[0].strip() or self.client_address[0]
 
+        def _redirect(self, url: str) -> None:
+            self.send_response(302)
+            self.send_header("Location", url)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        def _jobs_page(self, db, lead_id: int, notice: str = "") -> None:
+            lead = db.get_lead(lead_id)
+            recent = db.conn.execute(
+                "SELECT q.name, q.email FROM quotes q WHERE q.lead_id = ? AND q.email != '' AND NOT EXISTS "
+                "(SELECT 1 FROM review_requests r WHERE r.lead_id = q.lead_id AND r.customer_email = lower(q.email)) "
+                "ORDER BY q.id DESC LIMIT 8", (lead_id,)).fetchall()
+            rows = "".join(
+                f"<form method='post' style='display:flex;gap:8px;align-items:center;margin:6px 0'>"
+                f"<input type='hidden' name='name' value='{escape(r['name'] or '')}'>"
+                f"<input type='hidden' name='email' value='{escape(r['email'])}'>"
+                f"<span style='flex:1'>{escape(r['name'] or '')} · {escape(r['email'])}</span>"
+                f"<button type='submit'>Ask</button></form>" for r in recent)
+            recent_html = f"<h2>Recent quote requests</h2>{rows}" if rows else ""
+            self._send(200, PAGE.format(title="Ask for a review", body=JOBS_PAGE.format(
+                business=escape(lead["business_name"]), notice=notice, recent=recent_html)))
+
+        def _jobs(self, path: str, body: bytes | None):
+            parts = path.strip("/").split("/")  # jobs/<lead_id>/<token>
+            if len(parts) != 3 or not parts[1].isdigit() or not verify_jobs(int(parts[1]), parts[2], cfg.app_secret):
+                return self._send(404, PAGE.format(title="Not found", body="<p>Not found.</p>"))
+            lead_id, db = int(parts[1]), self._db()
+            if not has_booster(db, lead_id):
+                return self._send(403, PAGE.format(title="Not active", body="<p>Review Booster isn't active for this business.</p>"))
+            if body is None:
+                return self._jobs_page(db, lead_id)
+            form = {k: v[0] for k, v in parse_qs(body.decode(errors="ignore")).items()}
+            try:
+                request_review(db, lead_id, form.get("name", ""), form.get("email", ""))
+                notice = f"<p style='color:#006300'><strong>✓ Done.</strong> {escape(form.get('email', ''))} will get a review request shortly.</p>"
+            except ReviewError as exc:
+                notice = f"<p style='color:#b42f2f'>{escape(str(exc))}</p>"
+            return self._jobs_page(db, lead_id, notice)
+
+        def _review_click(self, path: str, body: bytes | None):
+            parts = path.strip("/").split("/")  # rv/<id>/<token>[/feedback]
+            if len(parts) not in (3, 4) or not parts[1].isdigit() or not verify_click(int(parts[1]), parts[2], cfg.app_secret):
+                return self._send(404, PAGE.format(title="Not found", body="<p>Not found.</p>"))
+            rid, db = int(parts[1]), self._db()
+            req = db.conn.execute("SELECT r.*, l.business_name, l.email AS biz_email FROM review_requests r "
+                                  "JOIN leads l ON l.id = r.lead_id WHERE r.id = ?", (rid,)).fetchone()
+            if req is None:
+                return self._send(404, PAGE.format(title="Not found", body="<p>Not found.</p>"))
+            biz = escape(req["business_name"])
+            if len(parts) == 3:
+                target = record_click(db, rid)
+                return self._redirect(target) if target else self._send(
+                    200, PAGE.format(title="Thank you", body=f"<p>Thank you for choosing {biz}!</p>"))
+            if body is None:  # private feedback form; the public review link stays one tap away
+                return self._send(200, PAGE.format(title=f"Feedback for {biz}", body=(
+                    f"<h1>Tell {biz} privately</h1><p>Your message goes straight to the business.</p>"
+                    "<form method='post'><textarea name='message' required maxlength='3000' "
+                    "style='width:100%;min-height:140px;padding:10px'></textarea><p><button type='submit'>Send</button></p></form>"
+                    f"<p>Want to leave a public review too? <a href='{escape('/'.join(['', *parts[:3]]))}'>Leave a review</a></p>")))
+            text = (parse_qs(body.decode(errors="ignore")).get("message", [""])[0]).strip()[:3000]
+            if text:
+                with db.tx() as c:
+                    c.execute("UPDATE review_requests SET feedback = ? WHERE id = ?", (text, rid))
+                db.log("reviews", "private_feedback", text[:160], req["lead_id"])
+                if req["biz_email"]:
+                    from email.message import EmailMessage
+                    from .mailer import Mailer
+                    msg = EmailMessage()
+                    msg["Subject"] = f"Private feedback from {req['customer_name'] or req['customer_email']}"
+                    msg["To"] = req["biz_email"]
+                    msg.set_content(f"{req['customer_name'] or 'A customer'} ({req['customer_email']}) wrote:\n\n{text}\n")
+                    mailer = Mailer(db, cfg)
+                    sender = mailer.notify_sender()
+                    if sender is not None:
+                        try:
+                            mailer.send(sender, msg, bot="reviews", lead_id=req["lead_id"], detail="feedback forwarded",
+                                        kind="notify", reply_to=req["customer_email"])
+                        finally:
+                            mailer.close()
+            return self._send(200, PAGE.format(title="Thank you", body=(
+                f"<h1>Thank you!</h1><p>{biz} has your message.</p>"
+                f"<p>You can still <a href='{escape('/'.join(['', *parts[:3]]))}'>leave a public review</a> if you'd like.</p>")))
+
         def _quote(self, path: str, body: bytes):
             parts = path.strip("/").split("/")  # quote/<lead_id>/<token>
             if len(parts) != 3 or not parts[1].isdigit() or not verify_quote(int(parts[1]), parts[2], cfg.app_secret):
@@ -244,6 +328,10 @@ def make_handler(cfg: Config):
                     "SELECT MAX(created_at) FROM events WHERE kind = 'heartbeat'").fetchone()[0]
                 self._send(200, json.dumps({"ok": True, "dry_run": cfg.dry_run, "last_event": last,
                                             "last_heartbeat": beat}), "application/json")
+            elif u.path.startswith("/jobs/"):
+                self._jobs(u.path, None)
+            elif u.path.startswith("/rv/"):
+                self._review_click(u.path, None)
             elif u.path.startswith("/r/") and cfg.referrals_enabled:
                 referrer = referrer_for_code(self._db(), u.path[3:].strip("/"), cfg.app_secret)
                 if referrer is None:
@@ -305,6 +393,10 @@ def make_handler(cfg: Config):
                 state = "paused" if action == "pause" else "resumed"
                 return self._send(200, PAGE.format(title=f"Sending {state}", body=(
                     f"<h1>Marketing email {state}</h1><p>Takes effect on the bots' next run.</p>")))
+            if u.path.startswith("/jobs/"):
+                return self._jobs(u.path, body)
+            if u.path.startswith("/rv/"):
+                return self._review_click(u.path, body)
             if u.path.startswith("/r/") and cfg.referrals_enabled:
                 db = self._db()
                 referrer = referrer_for_code(db, u.path[3:].strip("/"), cfg.app_secret)

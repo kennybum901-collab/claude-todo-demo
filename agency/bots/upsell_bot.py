@@ -43,9 +43,9 @@ class Addon:
 CATALOG: tuple[Addon, ...] = (
     Addon("reviews", "Review Booster", 9_900,
           "Turn happy customers into 5-star Google reviews automatically.",
-          ("Text/email review requests after every job",
-           "Unhappy customers routed to you privately first",
-           "Monthly review count report"),
+          ("A review request emailed to every customer after the job (one tap from your phone)",
+           "A friendly reminder if they forget, plus an optional private feedback form",
+           "Monthly count of requests sent and review pages opened"),
           ("plumber", "roofer", "electrician", "hvac", "landscaper", "cleaner", "auto repair")),
     Addon("booking", "Online Booking", 7_900,
           "Let customers book appointments from your website 24/7.",

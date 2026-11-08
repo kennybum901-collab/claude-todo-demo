@@ -22,6 +22,7 @@ from ..db import DB, now
 from ..mailer import Mailer
 from ..quotes import counts as quote_counts
 from ..referrals import link_for as referral_link
+from ..reviews import ReviewBot
 from ..unsubscribe import url as unsubscribe_url
 from .builder_bot import TEMPLATES
 from .outreach_bot import money
@@ -86,6 +87,7 @@ class ReportBot:
         offered = {a["addon"] for a in self.db.addons_for(lead["id"])}
         suggestion = next((a for a in best_offers(lead["niche"]) if a.key not in offered), None)
         return {
+            "reviews": ReviewBot(self.db, self.cfg).stats(lead["id"], lo, hi),
             "quotes": quote_counts(self.db, lead["id"], lo, hi),
             "quotes_total": quote_counts(self.db, lead["id"]),
             "checks": checks,

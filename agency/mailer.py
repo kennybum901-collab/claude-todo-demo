@@ -165,7 +165,8 @@ class Mailer:
         return healthy[0] if healthy else None
 
     def send(self, sender: Sender, msg: EmailMessage, *, bot: str, lead_id: int | None, detail: str,
-             kind: str | None = None, to_owner: bool = False) -> None:
+             kind: str | None = None, to_owner: bool = False, reply_to: str | None = None,
+             from_name: str | None = None) -> None:
         """kind=None: marketing email (counts toward caps, gets unsubscribe headers).
         kind="notify": transactional notice (no cap, keeps Reply-To).
         to_owner=True: an email to the business owner (you) - delivered even in DRY_RUN."""
@@ -174,7 +175,10 @@ class Mailer:
             del msg[h]
         if not transactional:
             del msg["Reply-To"]
-        msg["From"] = f"{sender.from_name} <{sender.email}>"
+        msg["From"] = f"{from_name or sender.from_name} <{sender.email}>"
+        if reply_to:  # e.g. a review request: the customer's reply goes to the business itself
+            del msg["Reply-To"]
+            msg["Reply-To"] = reply_to
         if not transactional:
             for k, v in unsubscribe_headers(msg["To"], sender.email, self.cfg).items():
                 msg[k] = v

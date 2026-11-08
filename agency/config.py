@@ -64,6 +64,7 @@ class Config:
     report_day: int = _int("REPORT_DAY", 1)          # day of month monthly reports go out
     referrals_enabled: bool = _bool("REFERRALS_ENABLED", True)
     referral_discount_cents: int = _int("REFERRAL_DISCOUNT_CENTS", 10_000)   # off setup for referred leads
+    review_reminder_days: int = _int("REVIEW_REMINDER_DAYS", 4)
     winback_enabled: bool = _bool("WINBACK_ENABLED", True)
     winback_churn_days: int = _int("WINBACK_CHURN_DAYS", 30)   # first email to a cancelled client
     winback_lost_days: int = _int("WINBACK_LOST_DAYS", 90)     # one last email to a silent prospect

@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS leads (
     score_reason    TEXT,
     referred_by     INTEGER,
     theme           TEXT,
+    review_url      TEXT,
     last_reply      TEXT,
     reply_draft     TEXT,
     subscription_id TEXT,
@@ -135,6 +136,18 @@ CREATE TABLE IF NOT EXISTS referral_rewards (
     coupon_id        TEXT,
     applied_at       TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS review_requests (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    lead_id        INTEGER NOT NULL,     -- the client (business)
+    customer_name  TEXT,
+    customer_email TEXT NOT NULL,
+    created_at     TEXT NOT NULL,
+    sent_at        TEXT,
+    reminded_at    TEXT,
+    clicked_at     TEXT,
+    feedback       TEXT,
+    UNIQUE (lead_id, customer_email)
+);
 CREATE TABLE IF NOT EXISTS reports (
     lead_id  INTEGER NOT NULL,
     period   TEXT NOT NULL,          -- YYYY-MM the report covers
@@ -174,7 +187,7 @@ class DB:
     MIGRATIONS = {
         "leads": {"variant": "TEXT", "last_reply": "TEXT", "reply_draft": "TEXT",
                   "subscription_id": "TEXT", "sender": "TEXT", "score": "INTEGER",
-                  "score_reason": "TEXT", "referred_by": "INTEGER", "theme": "TEXT"},
+                  "score_reason": "TEXT", "referred_by": "INTEGER", "theme": "TEXT", "review_url": "TEXT"},
         "events": {"sender": "TEXT"},
     }
 

@@ -54,6 +54,10 @@ def main(argv: list[str] | None = None) -> int:
     ea.add_argument("edit_id", type=int)
     er = sub.add_parser("edit-reject", help="reject / close a site edit request")
     er.add_argument("edit_id", type=int)
+    sr = sub.add_parser("set-review-url", help="set a client's Google review link (for Review Booster)")
+    sr.add_argument("lead_id", type=int)
+    sr.add_argument("url")
+    sub.add_parser("jobs-links", help="print each Review Booster client's private 'job done' link")
     sub.add_parser("referral-links", help="print every client's referral link")
     sub.add_parser("rebuild-clients", help="rebuild + redeploy every client site (e.g. after setting PUBLIC_URL)")
     rp = sub.add_parser("preview-report", help="print last month's report for a client")
@@ -174,6 +178,18 @@ def main(argv: list[str] | None = None) -> int:
         from .edits import EditBot
         ok = EditBot(db, config).decide(args.edit_id, approve=args.cmd == "edit-approve")
         print("done" if ok else "not found, already decided, or nothing to apply automatically")
+    elif args.cmd == "set-review-url":
+        if not args.url.startswith("https://"):
+            print("the review link must start with https://", file=sys.stderr)
+            return 1
+        db.update_lead(args.lead_id, review_url=args.url)
+        print(f"review link set for lead {args.lead_id}")
+    elif args.cmd == "jobs-links":
+        from .reviews import has_booster, jobs_url, review_url_for
+        for r in db.leads_by_status("client"):
+            if has_booster(db, r["id"]):
+                print(f"#{r['id']:<5} {r['business_name'][:30]:<30} {jobs_url(r['id'], config) or '(set PUBLIC_URL)'}"
+                      + ("" if review_url_for(r) else "   ⚠ no review link: set-review-url"))
     elif args.cmd == "referral-links":
         from .referrals import code_for, link_for
         for r in db.leads_by_status("client"):

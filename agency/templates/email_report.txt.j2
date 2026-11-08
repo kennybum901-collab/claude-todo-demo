@@ -6,6 +6,9 @@ Here's how your website did in {{ month_name }}.
 NEW CUSTOMERS
   - {{ quotes }} quote request{{ "s" if quotes != 1 }} came in through your website{% if quotes_total > quotes %} ({{ quotes_total }} since launch){% endif %}
 {% endif %}
+{% if reviews and reviews.sent %}REVIEW BOOSTER
+  - {{ reviews.sent }} review request{{ "s" if reviews.sent != 1 }} sent, {{ reviews.clicked }} customer{{ "s" if reviews.clicked != 1 }} opened your review page
+{% endif %}
 WEBSITE HEALTH
 {% if checks %}  - Uptime: {{ "%.2f"|format(uptime_pct) }}% ({{ checks }} checks{% if incidents %}, {{ incidents }} brief outage{{ "s" if incidents != 1 }} handled{% endif %})
   - Average load time: {{ avg_ms }} ms
