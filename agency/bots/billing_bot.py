@@ -39,12 +39,18 @@ class BillingBot:
         r.raise_for_status()
         return r.json()
 
+    def setup_fee(self, lead) -> int:
+        """Referred businesses get REFERRAL_DISCOUNT_CENTS off setup."""
+        if lead.get("referred_by") if isinstance(lead, dict) else lead["referred_by"]:
+            return max(0, self.cfg.setup_fee_cents - self.cfg.referral_discount_cents)
+        return self.cfg.setup_fee_cents
+
     def create_payment_link(self, lead: dict) -> tuple[str, str]:
         if not self.live:
             return f"{self.cfg.company_url}/claim?lead={lead['id']}", f"dry_{lead['id']}"
         product_name = f"Website for {lead['business_name']}"
         setup = self._post("/prices", {
-            "currency": self.cfg.currency, "unit_amount": self.cfg.setup_fee_cents,
+            "currency": self.cfg.currency, "unit_amount": self.setup_fee(lead),
             "product_data[name]": f"{product_name} - setup",
         })
         monthly = self._post("/prices", {

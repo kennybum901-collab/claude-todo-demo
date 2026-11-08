@@ -57,6 +57,7 @@ Pick one niche in 1–2 cities. Run in dry-run mode, read every email and site b
 - Move from SQLite to Postgres, run the daemon on a small VPS or cron, and use a Stripe webhook instead of polling.
 - Use niche-specific templates with booking and quote forms (higher conversion, higher price).
 - Add partner channels: accountants, chambers of commerce, sign shops (referral fee per client).
+- Client referrals are automated: every client has a link in their monthly report (free month per signup, $100 off for the friend). Referred leads close far better than cold email, so watch the *by source* table on the Performance page.
 - Target: 200+ clients, $10k+ MRR, where the business becomes sellable (agencies with recurring revenue often sell for several times annual profit).
 
 ## 5. What is automated vs. what stays human

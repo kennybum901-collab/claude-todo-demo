@@ -166,6 +166,7 @@ class ObsidianSync:
             "subject_variant": row["variant"],
             "last_contacted": (row["last_contacted"] or "")[:10] or None,
             "source": row["source"],
+            "referred_by": row["referred_by"],
             "do_not_contact": fm_old.get("do_not_contact", "false").lower() == "true"
                               or row["status"] == "unsubscribed",
             "tags": f"lead/{row['status']}",
@@ -303,6 +304,8 @@ class ObsidianSync:
         unforwarded = self.db.conn.execute(
             "SELECT l.*, COUNT(*) n FROM quotes q JOIN leads l ON l.id = q.lead_id "
             "WHERE q.notified = 0 GROUP BY l.id").fetchall()
+        from .referrals import ReferralBot
+        ref = ReferralBot(self.db, self.cfg, mailer=self.mailer).stats()
         from .bots.winback_bot import WinbackBot
         wb = WinbackBot(self.db, self.cfg, mailer=self.mailer).stats()
         top_leads = self.db.leads_by_status("new", "built", "deployed", limit=10, by_score=True)
@@ -361,6 +364,9 @@ updated: "{stamp}"
 | Add-on | Offered | Active | MRR |
 |---|---|---|---|
 {addon_table}
+
+## 🤝 Referrals
+{ref['signups']} referred sign-ups · **{ref['won']} became clients** · {ref['rewards']} free months given
 
 ## 🔁 Win-back
 {wb['contacted']} people contacted · **{wb['recovered']} won back**

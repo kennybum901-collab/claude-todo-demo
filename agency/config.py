@@ -62,6 +62,8 @@ class Config:
     bounce_pause_rate: float = float(os.environ.get("BOUNCE_PAUSE_RATE", "0.05"))
     reports_enabled: bool = _bool("REPORTS_ENABLED", True)
     report_day: int = _int("REPORT_DAY", 1)          # day of month monthly reports go out
+    referrals_enabled: bool = _bool("REFERRALS_ENABLED", True)
+    referral_discount_cents: int = _int("REFERRAL_DISCOUNT_CENTS", 10_000)   # off setup for referred leads
     winback_enabled: bool = _bool("WINBACK_ENABLED", True)
     winback_churn_days: int = _int("WINBACK_CHURN_DAYS", 30)   # first email to a cancelled client
     winback_lost_days: int = _int("WINBACK_LOST_DAYS", 90)     # one last email to a silent prospect

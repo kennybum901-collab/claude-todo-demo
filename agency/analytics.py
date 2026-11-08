@@ -26,6 +26,7 @@ class Snapshot:
     funnel: list[dict[str, Any]]               # [{stage, count, rate_from_prev}]
     by_niche: list[dict[str, Any]]
     by_city: list[dict[str, Any]]
+    by_source: list[dict[str, Any]] = field(default_factory=list)
     recommendations: list[str] = field(default_factory=list)
 
 
@@ -198,6 +199,6 @@ class Analytics:
         return Snapshot(
             generated_at=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
             kpis=self.kpis(today), mrr_history=self.mrr_history(today), funnel=funnel,
-            by_niche=by_niche, by_city=by_city,
+            by_niche=by_niche, by_city=by_city, by_source=self.segments("source", today),
             recommendations=self.recommendations(by_niche, by_city, funnel),
         )

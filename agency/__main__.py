@@ -54,6 +54,7 @@ def main(argv: list[str] | None = None) -> int:
     ea.add_argument("edit_id", type=int)
     er = sub.add_parser("edit-reject", help="reject / close a site edit request")
     er.add_argument("edit_id", type=int)
+    sub.add_parser("referral-links", help="print every client's referral link")
     sub.add_parser("rebuild-clients", help="rebuild + redeploy every client site (e.g. after setting PUBLIC_URL)")
     rp = sub.add_parser("preview-report", help="print last month's report for a client")
     rp.add_argument("lead_id", type=int)
@@ -173,6 +174,10 @@ def main(argv: list[str] | None = None) -> int:
         from .edits import EditBot
         ok = EditBot(db, config).decide(args.edit_id, approve=args.cmd == "edit-approve")
         print("done" if ok else "not found, already decided, or nothing to apply automatically")
+    elif args.cmd == "referral-links":
+        from .referrals import code_for, link_for
+        for r in db.leads_by_status("client"):
+            print(f"#{r['id']:<5} {r['business_name'][:32]:<32} {link_for(r, config) or code_for(r, config.app_secret)}")
     elif args.cmd == "rebuild-clients":
         orch = Orchestrator(db, config)
         clients = db.leads_by_status("client")

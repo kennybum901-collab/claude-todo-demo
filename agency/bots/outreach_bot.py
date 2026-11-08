@@ -65,11 +65,18 @@ class OutreachBot:
             opener = json.loads(copy_path.read_text()).get("email_opener", "")
         tpl = "email_initial.txt.j2" if step == 0 else "email_followup.txt.j2"
         variant = lead.get("variant") or self.pick_variant(lead)
+        referrer = self.db.get_lead(lead["referred_by"]) if lead.get("referred_by") else None
+        setup_cents = self.cfg.setup_fee_cents
+        if referrer is not None:
+            setup_cents = max(0, setup_cents - self.cfg.referral_discount_cents)
+            if step == 0:
+                tpl = "email_referral.txt.j2"
         body = self.env.get_template(tpl).render(
+            referrer=referrer, discount=money(self.cfg.referral_discount_cents),
             lead=lead, cfg=self.cfg, opener=opener, step=step,
             unsub=unsubscribe_url(lead["email"], self.cfg) if lead.get("email") else None,
             subject=SUBJECT_VARIANTS[variant].format(name=lead["business_name"]),
-            setup=money(self.cfg.setup_fee_cents), monthly=money(self.cfg.monthly_fee_cents),
+            setup=money(setup_cents), monthly=money(self.cfg.monthly_fee_cents),
         )
         subject_line, _, text = body.partition("\n")
         msg = EmailMessage()
@@ -102,7 +109,10 @@ class OutreachBot:
         sent = 0
         try:
             # follow-ups first (they're owed), then first emails, highest score first
-            queue = self.db.leads_by_status("contacted") + self.db.leads_by_status("deployed", by_score=True)
+            deployed = self.db.leads_by_status("deployed", by_score=True)
+            # referred (opted-in) leads go first, then the rest by score
+            deployed = [r for r in deployed if r["referred_by"]] + [r for r in deployed if not r["referred_by"]]
+            queue = self.db.leads_by_status("contacted") + deployed
             for row in queue:
                 lead = dict(row)
                 if not lead["email"]:
@@ -113,7 +123,8 @@ class OutreachBot:
                 step = self._due(lead)
                 if step is None:
                     continue
-                if step == 0 and lead.get("score") is not None and lead["score"] < self.cfg.min_lead_score:
+                if (step == 0 and not lead.get("referred_by") and lead.get("score") is not None
+                        and lead["score"] < self.cfg.min_lead_score):
                     continue  # weak lead: never cold-emailed (still on the call list)
                 if self.live and not (
                     (lead["preview_url"] or "").startswith("https://")

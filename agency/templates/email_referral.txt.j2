@@ -1,0 +1,21 @@
+Subject: {{ referrer.business_name }} recommended us: your free website preview
+Hi {{ lead.business_name }} team,
+
+Thanks for asking for a free preview. {{ referrer.business_name }} recommended us, and we've already built a first version of your website:
+{{ lead.preview_url }}
+
+If you like it, it can be live on your own domain this week:
+  - {{ setup }} one-time setup ({{ discount }} off, thanks to {{ referrer.business_name }})
+  - {{ monthly }}/month for hosting, security, updates and small changes
+  - Cancel anytime
+
+Claim it here: {{ lead.payment_url }}
+Or just reply with any changes you'd like before it goes live.
+
+{{ cfg.owner_name }}
+{{ cfg.company_name }} | {{ cfg.company_url }}
+
+--
+{{ cfg.company_name }}, {{ cfg.company_address }}
+You're receiving this because you requested a preview. Reply "STOP" to opt out.
+{% if unsub %}Unsubscribe instantly: {{ unsub }}{% endif %}

@@ -25,6 +25,7 @@ from .digest import Digest
 from .edits import EditBot
 from .mailer import Mailer
 from .obsidian import ObsidianSync
+from .referrals import ReferralBot
 from .scoring import LeadScorer
 
 log = logging.getLogger(__name__)
@@ -87,6 +88,8 @@ class Orchestrator:
             "subscriptions": self._step("subs", self.billing.check_subscriptions),
             "winback": self._step("winback", self.winback.run) if self.cfg.winback_enabled else None,
             "onboarded": self._step("onboard", self.onboard_paid_clients),
+            "referral_rewards": self._step("referrals", ReferralBot(self.db, self.cfg, mailer=self.mailer).run)
+            if self.cfg.referrals_enabled else None,
             "upsell": self._step("upsell", self.upsell.run) if self.cfg.upsell_enabled else None,
             "down": self._step("monitor", self.monitor.run),
             "previews_removed": self._step("cleanup", self.deployer.cleanup),

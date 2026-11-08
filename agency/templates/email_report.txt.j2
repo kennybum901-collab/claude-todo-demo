@@ -25,6 +25,11 @@ Need a change (new photos, hours, services, prices)? Just reply to this email; s
 {% if suggestion %}
 Popular with clients like you: {{ suggestion.name }}. {{ suggestion.pitch }} Reply "tell me more" if you're curious.
 {% endif %}
+{% if referral_link %}
+KNOW A BUSINESS THAT NEEDS A WEBSITE?
+Share your link: {{ referral_link }}
+They get {{ referral_discount }} off setup, and you get a free month for each one who signs up.
+{% endif %}
 Thanks for being a client!
 
 {{ cfg.owner_name }}

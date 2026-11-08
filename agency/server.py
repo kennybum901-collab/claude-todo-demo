@@ -31,6 +31,7 @@ from .config import Config
 from .db import DB, now
 from .orchestrator import Orchestrator
 from .digest import verify_control
+from .referrals import LANDING, ReferralError, referrer_for_code, submit as submit_referral
 from .quotes import QuoteError, submit as submit_quote, verify as verify_quote
 from .unsubscribe import verify as verify_unsubscribe
 
@@ -172,6 +173,7 @@ button{{background:#1d232b;color:#fff;border:0;padding:12px 20px;border-radius:8
 
 def make_handler(cfg: Config):
     quote_limiter = RateLimiter(max_hits=5, per_seconds=3600)
+    referral_limiter = RateLimiter(max_hits=3, per_seconds=3600)
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "agency"
@@ -242,6 +244,13 @@ def make_handler(cfg: Config):
                     "SELECT MAX(created_at) FROM events WHERE kind = 'heartbeat'").fetchone()[0]
                 self._send(200, json.dumps({"ok": True, "dry_run": cfg.dry_run, "last_event": last,
                                             "last_heartbeat": beat}), "application/json")
+            elif u.path.startswith("/r/") and cfg.referrals_enabled:
+                referrer = referrer_for_code(self._db(), u.path[3:].strip("/"), cfg.app_secret)
+                if referrer is None:
+                    return self._send(404, PAGE.format(title="Not found", body="<p>This link is no longer active.</p>"))
+                self._send(200, PAGE.format(title="Free website preview", body=LANDING.format(
+                    referrer=escape(referrer["business_name"]), company=escape(cfg.company_name),
+                    discount=f"${cfg.referral_discount_cents / 100:,.0f}")))
             elif u.path in ("/control/pause", "/control/resume"):
                 action = u.path.rsplit("/", 1)[1]
                 tok = parse_qs(u.query).get("t", [""])[0]
@@ -296,6 +305,25 @@ def make_handler(cfg: Config):
                 state = "paused" if action == "pause" else "resumed"
                 return self._send(200, PAGE.format(title=f"Sending {state}", body=(
                     f"<h1>Marketing email {state}</h1><p>Takes effect on the bots' next run.</p>")))
+            if u.path.startswith("/r/") and cfg.referrals_enabled:
+                db = self._db()
+                referrer = referrer_for_code(db, u.path[3:].strip("/"), cfg.app_secret)
+                if referrer is None:
+                    return self._send(404, PAGE.format(title="Not found", body="<p>This link is no longer active.</p>"))
+                if not referral_limiter.allow(self._client_ip()):
+                    return self._send(429, PAGE.format(title="Slow down", body="<p>Please try again later.</p>"))
+                form = {k: v[0] for k, v in parse_qs(body.decode(errors="ignore")).items()}
+                try:
+                    submit_referral(db, cfg, referrer, form)
+                except ReferralError as exc:
+                    if str(exc) == "spam":
+                        return self._send(200, PAGE.format(title="Thanks", body="<h1>Thanks!</h1>"))
+                    code = 200 if "already have" in str(exc) else 400
+                    return self._send(code, PAGE.format(title="Free website preview", body=(
+                        f"<h1>{'Thanks!' if code == 200 else 'Almost there'}</h1><p>{escape(str(exc))}</p>"
+                        + ("" if code == 200 else "<p><a href='javascript:history.back()'>&larr; Go back</a></p>"))))
+                return self._send(200, PAGE.format(title="You're in!", body=(
+                    "<h1>You're in!</h1><p>We'll build your free preview and email it to you within a day or two.</p>")))
             if u.path.startswith("/quote/"):
                 return self._quote(u.path, body)
             if u.path == "/stripe/webhook":

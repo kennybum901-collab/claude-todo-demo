@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS leads (
     sender          TEXT,
     score           INTEGER,
     score_reason    TEXT,
+    referred_by     INTEGER,
     last_reply      TEXT,
     reply_draft     TEXT,
     subscription_id TEXT,
@@ -127,6 +128,12 @@ CREATE TABLE IF NOT EXISTS messages (           -- copy of every email the bots 
     body       TEXT,
     created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS referral_rewards (
+    referred_lead_id INTEGER PRIMARY KEY,
+    referrer_id      INTEGER NOT NULL,
+    coupon_id        TEXT,
+    applied_at       TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS reports (
     lead_id  INTEGER NOT NULL,
     period   TEXT NOT NULL,          -- YYYY-MM the report covers
@@ -166,7 +173,7 @@ class DB:
     MIGRATIONS = {
         "leads": {"variant": "TEXT", "last_reply": "TEXT", "reply_draft": "TEXT",
                   "subscription_id": "TEXT", "sender": "TEXT", "score": "INTEGER",
-                  "score_reason": "TEXT"},
+                  "score_reason": "TEXT", "referred_by": "INTEGER"},
         "events": {"sender": "TEXT"},
     }
 

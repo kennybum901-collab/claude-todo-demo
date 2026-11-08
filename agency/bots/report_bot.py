@@ -21,6 +21,7 @@ from ..config import Config
 from ..db import DB, now
 from ..mailer import Mailer
 from ..quotes import counts as quote_counts
+from ..referrals import link_for as referral_link
 from ..unsubscribe import url as unsubscribe_url
 from .builder_bot import TEMPLATES
 from .outreach_bot import money
@@ -113,7 +114,9 @@ class ReportBot:
         body = self.env.get_template("email_report.txt.j2").render(
             lead=lead, cfg=self.cfg, month_name=f"{calendar.month_name[start.month]} {start.year}",
             base_price=money(self.cfg.monthly_fee_cents),
-            unsub=unsubscribe_url(lead["email"], self.cfg), **data,
+            unsub=unsubscribe_url(lead["email"], self.cfg),
+            referral_link=referral_link(lead, self.cfg), referral_discount=money(self.cfg.referral_discount_cents),
+            **data,
         )
         subject, _, text = body.partition("\n")
         msg = EmailMessage()
