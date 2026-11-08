@@ -10,6 +10,7 @@ import sys
 from .bots.billing_bot import BillingBot
 from .bots.lead_bot import LeadBot
 from .bots.outreach_bot import OutreachBot
+from .bots.report_bot import ReportBot, previous_period
 from .bots.upsell_bot import CATALOG, UpsellBot
 from .config import config
 from .db import DB
@@ -38,6 +39,8 @@ def main(argv: list[str] | None = None) -> int:
     ad = sub.add_parser("addon-activate", help="manually activate an add-on for a client")
     ad.add_argument("lead_id", type=int)
     ad.add_argument("addon", choices=[a.key for a in CATALOG])
+    rp = sub.add_parser("preview-report", help="print last month's report for a client")
+    rp.add_argument("lead_id", type=int)
     sub.add_parser("obsidian-sync", help="write CRM notes + dashboard into the Obsidian vault")
     un = sub.add_parser("unsubscribe", help="add an email to the do-not-contact list")
     un.add_argument("email")
@@ -99,6 +102,15 @@ def main(argv: list[str] | None = None) -> int:
     elif args.cmd == "addon-activate":
         ok = UpsellBot(db, config).activate(args.lead_id, args.addon)
         print(f"{args.addon} {'activated' if ok else 'was already active'} for lead {args.lead_id}")
+    elif args.cmd == "preview-report":
+        from datetime import date
+        lead = db.get_lead(args.lead_id)
+        if not lead or not lead["email"]:
+            print("lead not found or has no email", file=sys.stderr)
+            return 1
+        period, start, end = previous_period(date.today())
+        msg, _ = ReportBot(db, config).compose(lead, period, start, end)
+        print(f"Subject: {msg['Subject']}\n\n{msg.get_content()}")
     elif args.cmd == "obsidian-sync":
         result = ObsidianSync(db, config).run()
         print(f"{result} -> {config.obsidian_vault}")

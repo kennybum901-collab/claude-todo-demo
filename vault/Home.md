@@ -10,6 +10,7 @@ Open this folder as a vault in Obsidian (**Open folder as vault → `vault/`**),
 - [[Business Plan]]: offer, pricing, funnel math, scaling roadmap
 - `Leads/`: one CRM note per business (properties + full bot activity timeline)
 - `Daily/`: what the bots did each day
+- `Reports/`: a copy of every monthly client report
 
 ## Playbooks
 - [[Playbooks/Daily Routine]]

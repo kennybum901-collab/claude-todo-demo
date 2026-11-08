@@ -16,6 +16,7 @@ from .bots.deploy_bot import DeployBot
 from .bots.lead_bot import LeadBot
 from .bots.monitor_bot import MonitorBot
 from .bots.outreach_bot import OutreachBot
+from .bots.report_bot import ReportBot
 from .bots.upsell_bot import UpsellBot
 from .config import Config
 from .db import DB
@@ -36,6 +37,7 @@ class Orchestrator:
         self.outreach = OutreachBot(db, cfg, mailer=self.mailer)
         self.monitor = MonitorBot(db, cfg)
         self.upsell = UpsellBot(db, cfg, mailer=self.mailer)
+        self.reports = ReportBot(db, cfg, mailer=self.mailer)
         self.obsidian = ObsidianSync(db, cfg, mailer=self.mailer)
 
     def onboard_paid_clients(self) -> int:
@@ -69,6 +71,8 @@ class Orchestrator:
             "built": self._step("build", self.builder.run),
             "deployed": self._step("deploy", self.deployer.run),
             "replies": self._step("inbox", self.outreach.check_inbox),
+            # clients first: reports use inbox capacity before cold outreach does
+            "reports": self._step("reports", self.reports.run) if self.cfg.reports_enabled else None,
             "emailed": self._step("outreach", self.outreach.run),
             "paid": self._step("payments", self.billing.check_payments),
             "subscriptions": self._step("subs", self.billing.check_subscriptions),

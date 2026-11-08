@@ -59,6 +59,8 @@ class Config:
     # Multi-inbox sending (see senders.example.json); falls back to SMTP_* below
     senders_file: Path = Path(os.environ.get("SENDERS_FILE") or ROOT / "senders.json")
     bounce_pause_rate: float = float(os.environ.get("BOUNCE_PAUSE_RATE", "0.05"))
+    reports_enabled: bool = _bool("REPORTS_ENABLED", True)
+    report_day: int = _int("REPORT_DAY", 1)          # day of month monthly reports go out
     upsell_enabled: bool = _bool("UPSELL_ENABLED", True)
     upsell_after_days: int = _int("UPSELL_AFTER_DAYS", 60)
     upsell_gap_days: int = _int("UPSELL_GAP_DAYS", 30)

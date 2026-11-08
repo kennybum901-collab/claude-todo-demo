@@ -22,6 +22,7 @@ See **[vault/Business Plan.md](vault/Business%20Plan.md)** for the offer, pricin
 | Billing bot | `agency/bots/billing_bot.py` | Creates a Stripe Payment Link per prospect ($499 setup + $49/mo), detects payments, tracks subscriptions (churn, failing cards) |
 | Outreach bot | `agency/bots/outreach_bot.py` | Personalized email and up to 2 follow-ups, subject-line A/B test, daily cap, opt-out handling, reads replies over IMAP and **drafts an answer** for you |
 | Upsell bot | `agency/bots/upsell_bot.py` | Offers clients niche-matched add-ons (Review Booster $99, Online Booking $79, Local SEO $199/mo) on a schedule, each with its own Stripe link; tracks activations and cancellations |
+| Report bot | `agency/bots/report_bot.py` | Monthly email to each client: uptime, outages handled, work done, their plan, one suggested add-on; copy saved to Obsidian |
 | Monitor bot | `agency/bots/monitor_bot.py` | Uptime checks for paying clients |
 | Obsidian sync | `agency/obsidian.py` | Writes one CRM note per lead, a live Dashboard and a daily log into your vault; reads `do_not_contact` flags back |
 | Mailer | `agency/mailer.py` | Rotates sends across multiple inboxes with per-inbox caps, warm-up ramps, sticky threads and auto-pause on bounces |
@@ -132,6 +133,7 @@ Without `senders.json`, the single `SMTP_*` settings and `DAILY_EMAIL_CAP` are u
 - **Churn tracking:** cancelled Stripe subscriptions become `churned` and drop out of MRR. Failing cards (`past_due`) appear under *Payment problems* so you can call before they cancel.
 - **Preview cleanup:** Netlify previews for `unsubscribed` and `lost` leads are deleted automatically.
 - **Upsells:** 60 days after a client's first payment (`UPSELL_AFTER_DAYS`), they get one add-on offer at a time, at most every 30 days (`UPSELL_GAP_DAYS`). Salons get booking first and trades get reviews first. Each add-on is a separate subscription the client explicitly buys. Add-on MRR shows in `report` and on the Dashboard. Edit `CATALOG` in `agency/bots/upsell_bot.py` to change offers and prices. Activate a deal closed by phone with `python -m agency addon-activate <lead_id> <addon>`. A client who replies STOP stops getting offers but stays a client.
+- **Monthly client reports:** on `REPORT_DAY` (default the 1st), every client gets a report on the previous month covering uptime %, outages handled, average load time, work done, their plan and add-ons, and one suggested next add-on. Each client gets one per month, only after a full month as a client, and reports go out before cold outreach so clients get inbox capacity first. Copies land in `vault/Reports/`. Preview one with `python -m agency preview-report <lead_id>`.
 - **Automatic DB migration:** existing databases get new columns on startup.
 
 ## Tests

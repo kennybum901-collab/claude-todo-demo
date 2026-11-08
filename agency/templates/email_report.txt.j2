@@ -1,0 +1,32 @@
+Subject: {{ lead.business_name }} website report: {{ month_name }}
+Hi {{ lead.business_name }} team,
+
+Here's how your website did in {{ month_name }}.
+
+WEBSITE HEALTH
+{% if checks %}  - Uptime: {{ "%.2f"|format(uptime_pct) }}% ({{ checks }} checks{% if incidents %}, {{ incidents }} brief outage{{ "s" if incidents != 1 }} handled{% endif %})
+  - Average load time: {{ avg_ms }} ms
+{% else %}  - Uptime monitoring started this month; numbers will appear in your next report.
+{% endif %}  - Hosting, SSL certificate and security updates: included and current
+  - Address: {{ lead.preview_url }}
+
+WORK DONE FOR YOU
+{% for item in work %}  - {{ item }}
+{% else %}  - Routine maintenance; no change requests this month
+{% endfor %}
+YOUR PLAN
+  - Hosting & care plan: {{ base_price }}/month
+{% for a in addons %}  - {{ a.name }}: {{ a.price }}/month
+{% endfor %}
+Need a change (new photos, hours, services, prices)? Just reply to this email; small edits are included.
+{% if suggestion %}
+Popular with clients like you: {{ suggestion.name }}. {{ suggestion.pitch }} Reply "tell me more" if you're curious.
+{% endif %}
+Thanks for being a client!
+
+{{ cfg.owner_name }}
+{{ cfg.company_name }} | {{ cfg.company_url }}
+
+--
+{{ cfg.company_name }}, {{ cfg.company_address }}
+{% if unsub %}Stop these reports: {{ unsub }}{% endif %}

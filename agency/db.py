@@ -77,6 +77,12 @@ CREATE TABLE IF NOT EXISTS addons (
     activated_at    TEXT,
     UNIQUE (lead_id, addon)
 );
+CREATE TABLE IF NOT EXISTS reports (
+    lead_id  INTEGER NOT NULL,
+    period   TEXT NOT NULL,          -- YYYY-MM the report covers
+    sent_at  TEXT NOT NULL,
+    PRIMARY KEY (lead_id, period)
+);
 CREATE TABLE IF NOT EXISTS uptime (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     lead_id    INTEGER NOT NULL,
