@@ -74,6 +74,7 @@ class Config:
     # --- Storage ---
     db_path: Path = Path(os.environ.get("DB_PATH", ROOT / "data" / "agency.db"))
     build_dir: Path = Path(os.environ.get("BUILD_DIR", ROOT / "data" / "sites"))
+    site_theme: str = os.environ.get("SITE_THEME", "")   # force one design: classic|bold|elegant|fresh
     # Obsidian vault the bots write the CRM into (set to your own vault path)
     obsidian_vault: Path = Path(os.environ.get("OBSIDIAN_VAULT") or ROOT / "vault")
     obsidian_enabled: bool = _bool("OBSIDIAN_SYNC", True)

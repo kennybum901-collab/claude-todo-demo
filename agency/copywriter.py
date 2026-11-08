@@ -55,6 +55,44 @@ NICHE_SERVICES: dict[str, list[tuple[str, str]]] = {
         ("Treatments", "Deep conditioning and repair for healthy hair."),
     ],
 }
+NICHE_SERVICES.update({
+    "landscaper": [
+        ("Lawn Care", "Regular mowing, edging and cleanup to keep your yard sharp."),
+        ("Landscape Design", "Beds, plants and hardscaping planned around your space."),
+        ("Seasonal Cleanup", "Leaves, branches and debris cleared in spring and fall."),
+    ],
+    "cleaner": [
+        ("Home Cleaning", "Thorough, reliable cleaning on your schedule."),
+        ("Deep Cleaning", "Top-to-bottom cleans for move-ins, move-outs and special occasions."),
+        ("Office Cleaning", "Keep your workplace spotless before or after hours."),
+    ],
+    "electrician": [
+        ("Repairs & Troubleshooting", "Outlets, breakers and wiring problems found and fixed."),
+        ("Panel Upgrades", "Safer, modern electrical panels for today's needs."),
+        ("Lighting", "Indoor and outdoor lighting installed right."),
+    ],
+    "barber": [
+        ("Haircuts", "Classic and modern cuts, done right."),
+        ("Beard Trims", "Shape-ups and hot-towel shaves."),
+        ("Kids' Cuts", "Patient, quick cuts for the little ones."),
+    ],
+})
+# call-to-action button text by kind of business (template copy only; AI copy writes its own)
+CTA_BY_KEYWORD = (
+    (("salon", "hair", "barber", "nail", "spa", "massage", "beauty", "lash"), "Book your appointment"),
+    (("bakery", "restaurant", "cafe", "coffee", "pizza", "food"), "Call to order"),
+    (("dentist", "clinic", "chiropract", "vet"), "Call to book a visit"),
+    (("landscap", "lawn", "clean", "pressure wash", "pool", "tree"), "Call for a free estimate"),
+)
+
+
+def cta_for(niche: str) -> str:
+    for words, text in CTA_BY_KEYWORD:
+        if any(w in niche for w in words):
+            return text
+    return "Call today for a free quote"
+
+
 DEFAULT_SERVICES = [
     ("Quality Service", "Professional work done right the first time."),
     ("Fair Pricing", "Clear quotes with no surprises."),
@@ -81,7 +119,7 @@ def template_copy(lead: dict[str, Any]) -> dict[str, Any]:
             "customer like a neighbor."
         ),
         "services": [{"name": n, "description": d} for n, d in services],
-        "cta": "Call today for a free quote",
+        "cta": cta_for(niche),
         "email_opener": (
             f"I came across {name} while looking for a {niche} in {city} and noticed "
             "you don't have a website yet"

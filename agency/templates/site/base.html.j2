@@ -1,0 +1,63 @@
+{#- Shared skeleton for every site design. Themes extend this and override blocks. -#}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ lead.business_name }}{% if lead.city %} | {{ lead.niche|title }} in {{ lead.city }}{% endif %}</title>
+<meta name="description" content="{{ copy.tagline }}">
+<script type="application/ld+json">{{ schema_json }}</script>
+<style>
+  :root { --brand: {{ color }}; }
+  * { box-sizing: border-box; }
+  img, svg { max-width: 100%; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+  .btn { display: inline-block; background: var(--brand); color: #fff; padding: 13px 24px; border-radius: 8px; text-decoration: none; font-weight: 700; border: 0; cursor: pointer; font: inherit; font-weight: 700; }
+  .btn:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
+  section { padding: 56px 0; }
+  .quote form { display: grid; gap: 12px; max-width: 560px; }
+  .quote label { font-weight: 600; font-size: .95rem; }
+  .quote input, .quote textarea, .quote select { width: 100%; padding: 12px; border: 1px solid #cfd5dc; border-radius: 8px; font: inherit; background: #fff; color: #1d232b; }
+  .quote textarea { min-height: 120px; }
+  .hp { position: absolute; left: -9999px; height: 0; overflow: hidden; }
+  .preview-bar { background: #fff3cd; color: #664d03; text-align: center; padding: 8px 16px; font-size: .9rem; font-family: system-ui, sans-serif; }
+  .preview-bar a { color: #664d03; font-weight: 700; }
+  {% block theme_css %}{% endblock %}
+</style>
+</head>
+<body class="theme-{{ theme }}">
+{% if preview %}<div class="preview-bar">Free preview built for {{ lead.business_name }} by {{ cfg.company_name }} — <a href="{{ payment_url or cfg.company_url }}">claim this site</a></div>{% endif %}
+{% block header %}{% endblock %}
+{% block hero %}{% endblock %}
+{% block services %}{% endblock %}
+{% block about %}{% endblock %}
+{% if quote_action %}
+<section class="quote" id="quote"><div class="wrap">
+  <h2>Get a Free Quote</h2>
+  <p>Tell us what you need and we'll get back to you quickly.</p>
+  <form method="post" action="{{ quote_action }}">
+    <div><label for="q-name">Name</label><input id="q-name" name="name" required maxlength="100" autocomplete="name"></div>
+    <div><label for="q-phone">Phone</label><input id="q-phone" name="phone" type="tel" maxlength="40" autocomplete="tel"></div>
+    <div><label for="q-email">Email</label><input id="q-email" name="email" type="email" maxlength="200" autocomplete="email"></div>
+    <div><label for="q-service">Service</label>
+      <select id="q-service" name="service">
+        {% for s in copy.services %}<option>{{ s.name }}</option>{% endfor %}
+        <option>Something else</option>
+      </select></div>
+    <div><label for="q-msg">Details</label><textarea id="q-msg" name="message" maxlength="3000"></textarea></div>
+    <div class="hp" aria-hidden="true"><label for="q-web">Website</label><input id="q-web" name="website" tabindex="-1" autocomplete="off"></div>
+    <button class="btn" type="submit">Request my free quote</button>
+  </form>
+</div></section>
+{% endif %}
+{% block contact %}
+<section class="contact"><div class="wrap">
+  <h2>Contact</h2>
+  {% if lead.phone %}<p>Phone: <a href="tel:{{ lead.phone|replace(' ', '') }}">{{ lead.phone }}</a></p>{% endif %}
+  {% if lead.address %}<p>{{ lead.address }}</p>{% endif %}
+  {% if copy.hours %}<p><strong>Hours:</strong> {{ copy.hours }}</p>{% endif %}
+</div></section>
+{% endblock %}
+<footer><div class="wrap">© {{ year }} {{ lead.business_name }}. Website by <a href="{{ cfg.company_url }}">{{ cfg.company_name }}</a>.</div></footer>
+</body>
+</html>

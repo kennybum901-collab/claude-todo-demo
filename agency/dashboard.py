@@ -206,5 +206,6 @@ def render(snap: Snapshot, company: str) -> str:
 <section class="card">{segment_table(snap.by_niche, "Performance by niche")}</section>
 <section class="card">{segment_table(snap.by_city, "Performance by city")}</section>
 <section class="card">{segment_table(snap.by_source, "Performance by source")}</section>
+<section class="card">{segment_table(snap.by_theme, "Performance by design")}</section>
 <p class="foot">* fewer than 20 emailed leads: too early to judge. Close rate = became client ÷ emailed.</p>
 </main><div id="tip" role="tooltip"></div><script>{JS}</script></body></html>"""

@@ -1,0 +1,39 @@
+{% extends "site/base.html.j2" %}
+{% block theme_css %}
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #1d232b; background: #fff; line-height: 1.6; }
+  header { padding: 18px 0; border-bottom: 1px solid #e6e9ed; }
+  header .wrap { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .logo { font-weight: 800; font-size: 1.25rem; }
+  .hero { padding: 80px 0 64px; background: linear-gradient(135deg, #f4f6f8, #fff); }
+  .hero h1 { font-size: clamp(2rem, 5vw, 3.2rem); line-height: 1.15; margin: 0 0 12px; }
+  .hero p { font-size: 1.2rem; color: #5b6672; max-width: 620px; }
+  .hero .btn + .btn { background: #1d232b; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; }
+  .card { background: #f4f6f8; border-radius: 12px; padding: 24px; }
+  .card h3 { margin-top: 0; color: var(--brand); }
+  .quote { background: #f4f6f8; }
+  .contact { background: #1d232b; color: #fff; } .contact a { color: #fff; }
+  footer { padding: 24px 0; font-size: .85rem; color: #5b6672; }
+{% endblock %}
+{% block header %}<header><div class="wrap">
+  <div class="logo">{{ lead.business_name }}</div>
+  {% if lead.phone %}<a class="btn" href="tel:{{ lead.phone|replace(' ', '') }}">Call {{ lead.phone }}</a>{% endif %}
+</div></header>{% endblock %}
+{% block hero %}<div class="hero"><div class="wrap">
+  <h1>{{ copy.headline }}</h1>
+  <p>{{ copy.tagline }}</p>
+  <div class="actions">
+  {% if lead.phone %}<a class="btn" href="tel:{{ lead.phone|replace(' ', '') }}">{{ copy.cta }}</a>{% endif %}
+  {% if quote_action %}<a class="btn" href="#quote">Get a free quote</a>{% endif %}
+  </div>
+</div></div>{% endblock %}
+{% block services %}<section><div class="wrap">
+  <h2>Our Services</h2>
+  <div class="grid">{% for s in copy.services %}<div class="card"><h3>{{ s.name }}</h3><p>{{ s.description }}</p></div>{% endfor %}</div>
+</div></section>{% endblock %}
+{% block about %}<section><div class="wrap">
+  <h2>About Us</h2>
+  <p>{{ copy.about }}</p>
+  {% if lead.rating %}<p><strong>{{ lead.rating }}★</strong>{% if lead.review_count %} from {{ lead.review_count }} reviews{% endif %}</p>{% endif %}
+</div></section>{% endblock %}

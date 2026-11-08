@@ -1,0 +1,53 @@
+{% extends "site/base.html.j2" %}
+{#- Trades: dark, high-contrast, phone number front and centre, trust strip. -#}
+{% block theme_css %}
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #15191e; background: #fff; line-height: 1.6; }
+  header { background: #15191e; color: #fff; padding: 14px 0; position: sticky; top: 0; z-index: 5; }
+  header .wrap { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .logo { font-weight: 900; font-size: 1.2rem; letter-spacing: .02em; text-transform: uppercase; }
+  .hero { background: #15191e; color: #fff; padding: 72px 0 88px; border-top: 4px solid var(--brand); }
+  .hero h1 { font-size: clamp(2.2rem, 6vw, 3.8rem); line-height: 1.05; margin: 0 0 16px; text-transform: uppercase; letter-spacing: -.01em; }
+  .hero p { font-size: 1.25rem; color: #c9d1d9; max-width: 640px; margin: 0 0 28px; }
+  .hero .phone { display: block; font-size: clamp(1.6rem, 5vw, 2.4rem); font-weight: 900; color: #fff; text-decoration: none; margin-bottom: 18px; }
+  .hero .btn { font-size: 1.1rem; padding: 16px 28px; }
+  .hero .ghost { background: transparent; border: 2px solid #fff; }
+  .trust { background: var(--brand); color: #fff; }
+  .trust .wrap { display: flex; flex-wrap: wrap; gap: 8px 32px; justify-content: center; padding: 16px 20px; font-weight: 700; }
+  .trust span::before { content: "✔ "; }
+  h2 { font-size: 2rem; text-transform: uppercase; letter-spacing: .01em; margin-top: 0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+  .card { border: 2px solid #15191e; border-radius: 4px; padding: 24px; border-top: 8px solid var(--brand); }
+  .card h3 { margin: 0 0 8px; font-size: 1.25rem; text-transform: uppercase; }
+  .about { background: #f2f4f6; }
+  .quote { background: #15191e; color: #fff; } .quote label { color: #fff; }
+  .contact { background: #fff; border-top: 1px solid #e3e7eb; } .contact a { color: #15191e; font-weight: 700; }
+  footer { padding: 24px 0; font-size: .85rem; color: #5b6672; background: #f2f4f6; }
+{% endblock %}
+{% block header %}<header><div class="wrap">
+  <div class="logo">{{ lead.business_name }}</div>
+  {% if lead.phone %}<a class="btn" href="tel:{{ lead.phone|replace(' ', '') }}">📞 {{ lead.phone }}</a>{% endif %}
+</div></header>{% endblock %}
+{% block hero %}<div class="hero"><div class="wrap">
+  <h1>{{ copy.headline }}</h1>
+  <p>{{ copy.tagline }}</p>
+  {% if lead.phone %}<a class="phone" href="tel:{{ lead.phone|replace(' ', '') }}">{{ lead.phone }}</a>{% endif %}
+  <div class="actions">
+  {% if lead.phone %}<a class="btn" href="tel:{{ lead.phone|replace(' ', '') }}">{{ copy.cta }}</a>{% endif %}
+  {% if quote_action %}<a class="btn ghost" href="#quote">Free quote</a>{% endif %}
+  </div>
+</div></div>
+<div class="trust"><div class="wrap">
+  {% if lead.rating %}<span>{{ lead.rating }}★{% if lead.review_count %} from {{ lead.review_count }} reviews{% endif %}</span>{% endif %}
+  {% if lead.city %}<span>Serving {{ lead.city }}</span>{% endif %}
+  {% if quote_action %}<span>Free quotes</span>{% endif %}
+  {% if lead.phone %}<span>Call {{ lead.phone }}</span>{% endif %}
+</div></div>{% endblock %}
+{% block services %}<section><div class="wrap">
+  <h2>What We Do</h2>
+  <div class="grid">{% for s in copy.services %}<div class="card"><h3>{{ s.name }}</h3><p>{{ s.description }}</p></div>{% endfor %}</div>
+</div></section>{% endblock %}
+{% block about %}<section class="about"><div class="wrap">
+  <h2>Why {{ lead.business_name }}</h2>
+  <p style="font-size:1.1rem;max-width:760px">{{ copy.about }}</p>
+</div></section>{% endblock %}

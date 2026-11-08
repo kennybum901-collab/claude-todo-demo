@@ -17,7 +17,7 @@ See **[vault/Business Plan.md](vault/Business%20Plan.md)** for the offer, pricin
 | Bot | File | Does |
 |---|---|---|
 | Lead bot | `agency/bots/lead_bot.py` | Google Places API search for businesses **without** a website; CSV import |
-| Builder bot | `agency/bots/builder_bot.py` | Writes copy (Claude, or templates offline) and renders a responsive one-page site with LocalBusiness schema |
+| Builder bot | `agency/bots/builder_bot.py` | Writes copy (Claude, or templates offline) and renders a responsive one-page site with LocalBusiness schema in one of 4 designs matched to the niche |
 | Deploy bot | `agency/bots/deploy_bot.py` | Publishes each site to Netlify as a live preview URL; takes previews down for opt-outs and dead leads |
 | Billing bot | `agency/bots/billing_bot.py` | Creates a Stripe Payment Link per prospect ($499 setup + $49/mo), detects payments, tracks subscriptions (churn, failing cards) |
 | Outreach bot | `agency/bots/outreach_bot.py` | Personalized email and up to 2 follow-ups, subject-line A/B test, daily cap, opt-out handling, reads replies over IMAP and **drafts an answer** for you |
@@ -182,6 +182,13 @@ Without `senders.json`, the single `SMTP_*` settings and `DAILY_EMAIL_CAP` are u
 - **Performance dashboard:** set `ADMIN_PASSWORD` and open `https://<your server>/admin` (user `admin`), or run `python -m agency dashboard` for `data/dashboard.html`. It shows MRR and its 30-day change, clients, revenue per client, churn, lifetime value (only once churn is measurable), a 12-month MRR chart split into base and add-ons (reconstructed from payments, cancellations and win-backs), the sales funnel, and close rate and MRR per niche and city. "What to do next" recommendations wait until a segment has 20+ emailed leads. The page loads nothing from the internet (inline SVG), works in light and dark mode, has hover tooltips and a table view, and works on phones. The same numbers are written to `vault/Performance.md` on every run.
 - **Lead scoring:** every run, each open lead gets a 0–100 score: your close rate for its niche × its city's lift × a reputation factor (rating and review count). Rates are smoothed with 20 pseudo-leads, so one lucky sale doesn't skew things, and they start from a 3% default before you have data. Sites are built and first emails sent **highest score first**. Follow-ups always go before new first emails. `MIN_LEAD_SCORE` stops weak leads from ever being cold-emailed; they stay on the call list instead. See `python -m agency top-leads`. The score and its reason show in each Obsidian lead note, and the Dashboard lists the best leads not yet emailed.
 - **Referral program:** each client's monthly report includes their link (`https://<server>/r/<code>`, unguessable, active only while they're a client; list them with `python -m agency referral-links`). A referred business fills in a short form with a **consent checkbox**, so it's an opted-in lead. It's emailed first ("Rivera Plumbing recommended us"), skips `MIN_LEAD_SCORE`, and gets `REFERRAL_DISCOUNT_CENTS` ($100) off setup on its Stripe link. When it pays, the referrer gets a one-time coupon worth one month on their subscription plus a thank-you email (once per referral). The form never undoes an opt-out and is rate-limited per visitor. Stats appear on the Dashboard; the performance page has a by-source table.
+- **Four site designs** (`agency/templates/site/`), picked from the niche:
+  - **bold**: trades (roofers, plumbers, electricians, HVAC…). Dark hero, giant tap-to-call number, trust strip.
+  - **elegant**: salons, spas, barbers, nails, beauty. Serif type, cream background, menu-style services.
+  - **fresh**: lawn care, landscaping, cleaning, pools, pets. Bright color block, wave divider, checklist services.
+  - **classic**: everything else.
+
+  The design is chosen once and saved with the site, so rebuilds never change it. `SITE_THEME` forces one design for every *new* site. All brand colors keep white text at ≥4.5:1 contrast. Only real facts are shown (actual rating and review count, no invented badges). The performance page has a **by design** table so you can see which converts best. Button text also fits the business now ("Book your appointment", "Call for a free estimate", "Call to order").
 - **Automatic DB migration:** existing databases get new columns on startup.
 
 ## Tests

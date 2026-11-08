@@ -17,7 +17,34 @@ from ..quotes import form_action
 
 log = logging.getLogger(__name__)
 TEMPLATES = Path(__file__).resolve().parent.parent / "templates"
-PALETTE = ["#1f6feb", "#0f766e", "#b45309", "#7c3aed", "#be123c", "#15803d", "#0e7490"]
+# brand colors per design; every one keeps white button text at >= 4.5:1 contrast
+PALETTES = {
+    "classic": ["#1f6feb", "#0f766e", "#b45309", "#7c3aed", "#be123c", "#15803d", "#0e7490"],
+    "bold": ["#c2410c", "#b91c1c", "#1d4ed8", "#a16207", "#047857"],
+    "elegant": ["#8a5a44", "#6b4f7a", "#3f6f6a", "#9c4f63", "#5b5f97"],
+    "fresh": ["#15803d", "#0f766e", "#0e7490", "#4d7c0f", "#166534"],
+}
+PALETTE = PALETTES["classic"]
+THEMES = tuple(PALETTES)
+# niche keywords -> design (first match wins); anything else gets "classic"
+THEME_BY_NICHE = (
+    ("bold", ("plumb", "roof", "electric", "hvac", "heating", "air condition", "mechanic", "auto repair",
+              "contractor", "construction", "concrete", "garage door", "locksmith", "towing", "pest", "welding")),
+    ("elegant", ("salon", "hair", "barber", "nail", "spa", "massage", "beauty", "lash", "brow", "esthetic",
+                 "tattoo", "florist", "bridal", "boutique", "dentist", "photograph")),
+    ("fresh", ("landscap", "lawn", "garden", "tree", "clean", "maid", "pressure wash", "pool", "window",
+               "moving", "pet", "dog", "groom", "carpet", "junk", "solar")),
+)
+
+
+def pick_theme(niche: str | None, forced: str = "") -> str:
+    if forced in THEMES:
+        return forced
+    n = (niche or "").lower()
+    for theme, words in THEME_BY_NICHE:
+        if any(w in n for w in words):
+            return theme
+    return "classic"
 
 
 def slugify(text: str) -> str:
@@ -41,9 +68,11 @@ class BuilderBot:
             "telephone": lead.get("phone"),
             "address": lead.get("address"),
         }
-        color = PALETTE[int(hashlib.md5(lead["business_name"].encode()).hexdigest(), 16) % len(PALETTE)]
-        return self.env.get_template("site.html.j2").render(
-            lead=lead, copy=copy, cfg=self.cfg, color=color, preview=preview,
+        theme = copy.get("theme") if copy.get("theme") in THEMES else pick_theme(lead.get("niche"), self.cfg.site_theme)
+        palette = PALETTES[theme]
+        color = palette[int(hashlib.md5(lead["business_name"].encode()).hexdigest(), 16) % len(palette)]
+        return self.env.get_template(f"site/{theme}.html.j2").render(
+            lead=lead, copy=copy, cfg=self.cfg, color=color, preview=preview, theme=theme,
             payment_url=lead.get("payment_url"), year=date.today().year,
             # the quote form only goes on paying clients' sites, never on previews
             quote_action=None if preview else form_action(lead["id"], self.cfg),
@@ -59,7 +88,11 @@ class BuilderBot:
         slug = lead.get("site_slug") or f"{slugify(lead['business_name'])}-{lead['id']}"
         out = self.cfg.build_dir / slug
         out.mkdir(parents=True, exist_ok=True)
+        # the design is chosen once and saved with the copy, so rebuilds never change it
+        copy.setdefault("theme", pick_theme(lead.get("niche"), self.cfg.site_theme))
         copy_path.write_text(json.dumps(copy, indent=2))
+        if lead.get("theme") != copy["theme"]:
+            self.db.update_lead(lead["id"], theme=copy["theme"])
         (out / "index.html").write_text(self.render(lead, copy, preview), encoding="utf-8")
         (out / "robots.txt").write_text(
             "User-agent: *\nDisallow: /\n" if preview else "User-agent: *\nAllow: /\n"

@@ -1,0 +1,48 @@
+{% extends "site/base.html.j2" %}
+{#- Outdoor & home services: bright, rounded, friendly, checklist services. -#}
+{% block theme_css %}
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #17301f; background: #fff; line-height: 1.6; }
+  header { padding: 16px 0; }
+  header .wrap { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .logo { font-weight: 800; font-size: 1.3rem; color: var(--brand); }
+  .btn { border-radius: 999px; }
+  .hero { background: var(--brand); color: #fff; padding: 64px 0 96px; position: relative; }
+  .hero h1 { font-size: clamp(2rem, 5.5vw, 3.4rem); line-height: 1.1; margin: 0 0 14px; max-width: 720px; }
+  .hero p { font-size: 1.2rem; opacity: .92; max-width: 600px; margin: 0 0 26px; }
+  .hero .btn { background: #fff; color: #17301f; }
+  .hero .btn + .btn { background: transparent; color: #fff; border: 2px solid #fff; }
+  .wave { display: block; width: 100%; height: 60px; margin-top: -59px; position: relative; }
+  h2 { font-size: 1.9rem; margin-top: 0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
+  .card { background: #f1f7f2; border-radius: 20px; padding: 24px; }
+  .card h3 { margin: 0 0 6px; display: flex; gap: 10px; align-items: center; }
+  .tick { flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--brand); color: #fff; display: inline-grid; place-items: center; font-size: .9rem; }
+  .about .wrap { display: grid; gap: 24px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); align-items: center; }
+  .badge { background: #f1f7f2; border-radius: 20px; padding: 28px; text-align: center; }
+  .badge strong { display: block; font-size: 2.4rem; color: var(--brand); }
+  .quote { background: #f1f7f2; }
+  .contact { background: #17301f; color: #fff; } .contact a { color: #fff; }
+  footer { padding: 24px 0; font-size: .85rem; color: #4f6656; }
+{% endblock %}
+{% block header %}<header><div class="wrap">
+  <div class="logo">{{ lead.business_name }}</div>
+  {% if lead.phone %}<a class="btn" href="tel:{{ lead.phone|replace(' ', '') }}">Call {{ lead.phone }}</a>{% endif %}
+</div></header>{% endblock %}
+{% block hero %}<div class="hero"><div class="wrap">
+  <h1>{{ copy.headline }}</h1>
+  <p>{{ copy.tagline }}</p>
+  <div class="actions">
+  {% if lead.phone %}<a class="btn" href="tel:{{ lead.phone|replace(' ', '') }}">{{ copy.cta }}</a>{% endif %}
+  {% if quote_action %}<a class="btn" href="#quote">Free estimate</a>{% endif %}
+  </div>
+</div></div>
+<svg class="wave" viewBox="0 0 1440 60" preserveAspectRatio="none" aria-hidden="true"><path d="M0,30 C360,70 1080,-10 1440,30 L1440,60 L0,60 Z" fill="#fff"/></svg>{% endblock %}
+{% block services %}<section><div class="wrap">
+  <h2>How we can help</h2>
+  <div class="grid">{% for s in copy.services %}<div class="card"><h3><span class="tick" aria-hidden="true">✓</span>{{ s.name }}</h3><p>{{ s.description }}</p></div>{% endfor %}</div>
+</div></section>{% endblock %}
+{% block about %}<section class="about"><div class="wrap">
+  <div><h2>About us</h2><p>{{ copy.about }}</p></div>
+  {% if lead.rating %}<div class="badge"><strong>{{ lead.rating }}★</strong>{% if lead.review_count %}from {{ lead.review_count }} customer reviews{% else %}average rating{% endif %}</div>{% endif %}
+</div></section>{% endblock %}

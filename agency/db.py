@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS leads (
     score           INTEGER,
     score_reason    TEXT,
     referred_by     INTEGER,
+    theme           TEXT,
     last_reply      TEXT,
     reply_draft     TEXT,
     subscription_id TEXT,
@@ -173,7 +174,7 @@ class DB:
     MIGRATIONS = {
         "leads": {"variant": "TEXT", "last_reply": "TEXT", "reply_draft": "TEXT",
                   "subscription_id": "TEXT", "sender": "TEXT", "score": "INTEGER",
-                  "score_reason": "TEXT", "referred_by": "INTEGER"},
+                  "score_reason": "TEXT", "referred_by": "INTEGER", "theme": "TEXT"},
         "events": {"sender": "TEXT"},
     }
 
