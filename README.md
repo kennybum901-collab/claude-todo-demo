@@ -28,6 +28,7 @@ See **[vault/Business Plan.md](vault/Business%20Plan.md)** for the offer, pricin
 | Mailer | `agency/mailer.py` | Rotates sends across multiple inboxes with per-inbox caps, warm-up ramps, sticky threads and auto-pause on bounces |
 | Server | `agency/server.py` | `agency serve`: bots on a schedule, Stripe webhooks, one-click unsubscribe, `/health` |
 | Quote form | `agency/quotes.py` | "Get a free quote" form on client sites; requests are emailed to the owner instantly (Reply-To = customer) and counted in reports |
+| Supervisor | `agency/supervisor.py` | `agency supervise`: keeps everything running 24/7 with auto-restart on crash or hang, phone/email alerts, daily DB backups, rotating logs, disk check |
 | Orchestrator | `agency/orchestrator.py` | Runs everything in order; one failing bot never stops the rest |
 
 ## Quick start (safe: dry-run)
@@ -59,9 +60,25 @@ python -m agency daemon --every 60          # or cron: 0 * * * * cd /app && pyth
 
 The outreach bot refuses to email anyone until that lead has a real `https://` preview and a real Stripe link.
 
+## Running 24/7
+
+`python -m agency supervise` is the always-on mode (Docker and systemd use it by default):
+
+| Problem | What the supervisor does |
+|---|---|
+| Server crashes | Restarts it within seconds; backoff grows 1s → 5 min if it keeps crashing and resets once stable |
+| Server hangs | `/health` fails 3 checks in a row → kill and restart |
+| Bots stuck mid-run | No pipeline heartbeat for 3 × `RUN_EVERY_MINUTES` → restart |
+| Data loss risk | Online SQLite backup every day to `data/backups/`, keeping `BACKUP_KEEP_DAYS` |
+| Disk filling up | Alert below `MIN_FREE_DISK_MB` |
+| You're asleep | Alerts on crash, hang and recovery via `ALERT_WEBHOOK_URL` (Slack, Discord, or `https://ntfy.sh/<secret-topic>` for free phone push) and/or `ALERT_EMAIL`; repeat alerts are throttled |
+| Machine reboots | Docker `restart: unless-stopped` / systemd `Restart=always` start the supervisor again |
+
+Logs rotate in `data/logs/agency.log`. `python -m agency backup` makes a backup on demand.
+
 ## Deploying to a server
 
-A $5–10/month VPS (Hetzner, DigitalOcean, Lightsail…) is enough. `python -m agency serve` runs everything in one process:
+A $5–10/month VPS (Hetzner, DigitalOcean, Lightsail…) is enough. `python -m agency serve` runs everything in one process (and `supervise` keeps it alive):
 
 - the full bot pipeline every `RUN_EVERY_MINUTES` (default 60)
 - `POST /stripe/webhook` for instant payments, add-on purchases, cancellations and failed cards (signature-verified with `STRIPE_WEBHOOK_SECRET`)

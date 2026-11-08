@@ -126,7 +126,7 @@ def test_health_has_no_customer_data(server):
     base, db, cfg = server
     with urllib.request.urlopen(f"{base}/health") as r:
         data = json.loads(r.read())
-    assert data["ok"] is True and set(data) == {"ok", "dry_run", "last_event"}
+    assert data["ok"] is True and set(data) == {"ok", "dry_run", "last_event", "last_heartbeat"}
 
 
 def test_emails_carry_one_click_headers(env):

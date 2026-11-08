@@ -79,6 +79,13 @@ class Config:
     stripe_webhook_secret: str = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
     app_secret: str = os.environ.get("APP_SECRET", "")                 # signs unsubscribe links
 
+    # --- 24/7 supervisor (python -m agency supervise) ---
+    alert_webhook_url: str = os.environ.get("ALERT_WEBHOOK_URL", "")   # Slack / Discord / ntfy.sh
+    alert_email: str = os.environ.get("ALERT_EMAIL", "")
+    backup_keep_days: int = _int("BACKUP_KEEP_DAYS", 14)
+    log_dir: Path = Path(os.environ.get("LOG_DIR") or ROOT / "data" / "logs")
+    min_free_disk_mb: int = _int("MIN_FREE_DISK_MB", 500)
+
     # --- Integrations (all optional; bots degrade gracefully without them) ---
     google_places_key: str = os.environ.get("GOOGLE_PLACES_API_KEY", "")
     anthropic_model: str = os.environ.get("ANTHROPIC_MODEL", "claude-opus-5-5")

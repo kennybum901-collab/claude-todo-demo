@@ -29,6 +29,8 @@ def main(argv: list[str] | None = None) -> int:
     i.add_argument("path")
     sv = sub.add_parser("serve", help="production server: bots on a schedule + Stripe webhooks + unsubscribe")
     sv.add_argument("--no-bots", action="store_true", help="only serve HTTP, don't run the pipeline")
+    sub.add_parser("supervise", help="24/7 mode: run `serve`, auto-restart on crash/hang, alerts, daily backups")
+    sub.add_parser("backup", help="back up the database now")
     sub.add_parser("report", help="show pipeline + revenue metrics")
     sub.add_parser("call-list", help="print phone-only leads to call (CSV)")
     pr = sub.add_parser("preview-email", help="print the email a lead would receive")
@@ -50,13 +52,19 @@ def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     db = DB(config.db_path)
 
-    if config.dry_run and args.cmd in ("run", "daemon", "serve"):
+    if config.dry_run and args.cmd in ("run", "daemon", "serve", "supervise"):
         logging.warning("DRY_RUN is on: nothing will be emailed, deployed or charged.")
 
     if args.cmd == "run":
         print(json.dumps(Orchestrator(db, config).run_once(), indent=2, default=str))
     elif args.cmd == "daemon":
         Orchestrator(db, config).run_forever(args.every)
+    elif args.cmd == "supervise":
+        from .supervisor import main as supervise
+        supervise(config)
+    elif args.cmd == "backup":
+        from .supervisor import backup_database
+        print(f"backup: {backup_database(config)}")
     elif args.cmd == "serve":
         from .server import serve
         serve(config, run_bots=not args.no_bots)

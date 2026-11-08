@@ -216,9 +216,12 @@ def make_handler(cfg: Config):
             u = urlparse(self.path)
             if u.path == "/health":
                 # public endpoint: liveness only, no business or customer data
-                last = self._db().conn.execute("SELECT MAX(created_at) FROM events").fetchone()[0]
-                self._send(200, json.dumps({"ok": True, "dry_run": cfg.dry_run, "last_event": last}),
-                           "application/json")
+                db = self._db()
+                last = db.conn.execute("SELECT MAX(created_at) FROM events").fetchone()[0]
+                beat = db.conn.execute(
+                    "SELECT MAX(created_at) FROM events WHERE kind = 'heartbeat'").fetchone()[0]
+                self._send(200, json.dumps({"ok": True, "dry_run": cfg.dry_run, "last_event": last,
+                                            "last_heartbeat": beat}), "application/json")
             elif u.path == "/unsubscribe":
                 q = parse_qs(u.query)
                 email, tok = q.get("e", [""])[0], q.get("t", [""])[0]
@@ -278,10 +281,13 @@ def make_handler(cfg: Config):
 def scheduler(cfg: Config, stop: threading.Event) -> None:
     while not stop.is_set():
         started = time.monotonic()
+        db = DB(cfg.db_path)
         try:
-            Orchestrator(DB(cfg.db_path), cfg).run_once()
-        except Exception:  # keep the scheduler alive no matter what
+            Orchestrator(db, cfg).run_once()
+            db.log("scheduler", "heartbeat", f"ok in {time.monotonic() - started:.0f}s")
+        except Exception as exc:  # keep the scheduler alive no matter what
             log.exception("pipeline run failed")
+            db.log("scheduler", "heartbeat", f"failed: {exc}")
         stop.wait(max(60, cfg.run_every_minutes * 60 - (time.monotonic() - started)))
 
 
