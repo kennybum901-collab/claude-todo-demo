@@ -13,6 +13,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from ..config import Config
 from ..copywriter import generate_copy
 from ..db import DB
+from ..photos import Photos
 from ..quotes import form_action
 
 log = logging.getLogger(__name__)
@@ -60,7 +61,7 @@ class BuilderBot:
             loader=FileSystemLoader(TEMPLATES), autoescape=select_autoescape(["html", "j2"])
         )
 
-    def render(self, lead: dict, copy: dict, preview: bool = True) -> str:
+    def render(self, lead: dict, copy: dict, preview: bool = True, photos: list | None = None) -> str:
         schema = {
             "@context": "https://schema.org",
             "@type": "LocalBusiness",
@@ -73,6 +74,7 @@ class BuilderBot:
         color = palette[int(hashlib.md5(lead["business_name"].encode()).hexdigest(), 16) % len(palette)]
         return self.env.get_template(f"site/{theme}.html.j2").render(
             lead=lead, copy=copy, cfg=self.cfg, color=color, preview=preview, theme=theme,
+            photos=photos or [], photo_credits=sorted({p["credit"] for p in (photos or []) if p.get("credit")}),
             payment_url=lead.get("payment_url"), year=date.today().year,
             # the quote form only goes on paying clients' sites, never on previews
             quote_action=None if preview else form_action(lead["id"], self.cfg),
@@ -93,7 +95,11 @@ class BuilderBot:
         copy_path.write_text(json.dumps(copy, indent=2))
         if lead.get("theme") != copy["theme"]:
             self.db.update_lead(lead["id"], theme=copy["theme"])
-        (out / "index.html").write_text(self.render(lead, copy, preview), encoding="utf-8")
+        photos = Photos(self.db, self.cfg)
+        if self.cfg.pexels_api_key:
+            photos.ensure_stock(lead)
+        site_photos = photos.copy_into(lead["id"], out)  # only approved photos are ever published
+        (out / "index.html").write_text(self.render(lead, copy, preview, site_photos), encoding="utf-8")
         (out / "robots.txt").write_text(
             "User-agent: *\nDisallow: /\n" if preview else "User-agent: *\nAllow: /\n"
         )

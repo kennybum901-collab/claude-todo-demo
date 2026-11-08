@@ -107,6 +107,9 @@ def sanitize(proposed: dict[str, Any], before: dict[str, Any]) -> dict[str, Any]
 
 
 def diff(before: dict[str, Any], after: dict[str, Any]) -> list[tuple[str, str, str]]:
+    if "photos" in after:
+        n = len(after["photos"])
+        return [("photos", "(current photos)", f"{n} new photo{'s' if n != 1 else ''} (shown below)")]
     def show(v):
         if isinstance(v, list):
             return "; ".join(f"{s['name']}: {s['description']}" for s in v)
@@ -190,6 +193,9 @@ class EditBot:
         with self.db.tx() as c:
             c.execute("UPDATE edits SET status=?, decided_at=? WHERE id=?",
                       ("approved" if approve else "rejected", now(), edit_id))
+        if not approve and row["proposed_json"] and "photos" in json.loads(row["proposed_json"]):
+            from .photos import Photos
+            Photos(self.db, self.cfg).reject(json.loads(row["proposed_json"])["photos"])
         self.db.log(self.name, "edit_approved" if approve else "edit_rejected", f"#{edit_id}", row["lead_id"])
         return True
 
@@ -197,14 +203,18 @@ class EditBot:
     def apply(self, edit, builder, deployer) -> None:
         lead = self.db.get_lead(edit["lead_id"])
         proposed = json.loads(edit["proposed_json"])
-        path = self.cfg.build_dir / f"{lead['id']}-copy.json"
-        copy = json.loads(path.read_text()) if path.exists() else {}
-        for f in TEXT_FIELDS:
-            copy[f] = proposed[f]
-        copy["services"] = proposed["services"]
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(copy, indent=2))
-        self.db.update_lead(lead["id"], phone=proposed["phone"] or None, address=proposed["address"] or None)
+        if "photos" in proposed:   # photo edit: publish the approved images
+            from .photos import Photos
+            Photos(self.db, self.cfg).approve(proposed["photos"])
+        if "headline" in proposed:  # text edit
+            path = self.cfg.build_dir / f"{lead['id']}-copy.json"
+            copy = json.loads(path.read_text()) if path.exists() else {}
+            for f in TEXT_FIELDS:
+                copy[f] = proposed[f]
+            copy["services"] = proposed["services"]
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(copy, indent=2))
+            self.db.update_lead(lead["id"], phone=proposed["phone"] or None, address=proposed["address"] or None)
         builder.build(dict(self.db.get_lead(lead["id"])), preview=False)
         if lead["status"] == "client" and lead["site_slug"]:
             url, site_id = deployer.deploy(dict(self.db.get_lead(lead["id"])))  # just this site

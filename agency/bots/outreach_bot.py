@@ -229,7 +229,24 @@ class OutreachBot:
         if self.is_bounce(msg.get("From", ""), subject, msg.get_content_type()):
             full = msg.as_string() if msg.is_multipart() else text
             return "bounce" if self.handle_bounce(full, inbox) else "bounce_unmatched"
+        self.take_photos(msg, text)
         return self.classify_reply(msg.get("From", ""), f"{subject}\n{text}")
+
+    def take_photos(self, msg, text: str) -> int | None:
+        """Images attached by an existing client become a photo edit request."""
+        if not msg.is_multipart():
+            return None
+        email = parseaddr(msg.get("From", ""))[1].lower()
+        client = self.db.conn.execute(
+            "SELECT id FROM leads WHERE email = ? AND status = 'client'", (email,)).fetchone()
+        if client is None:
+            return None
+        images = [(part.get_filename() or "photo", part.get_payload(decode=True) or b"")
+                  for part in msg.walk() if part.get_content_maintype() == "image"]
+        if not images:
+            return None
+        from ..photos import Photos
+        return Photos(self.db, self.cfg).intake(client["id"], images, text)
 
     def check_inbox(self) -> int:
         """Reads unseen mail in every inbox: bounces suppress the address, opt-outs are

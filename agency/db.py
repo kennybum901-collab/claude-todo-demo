@@ -148,6 +148,18 @@ CREATE TABLE IF NOT EXISTS review_requests (
     feedback       TEXT,
     UNIQUE (lead_id, customer_email)
 );
+CREATE TABLE IF NOT EXISTS photos (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    lead_id    INTEGER NOT NULL,
+    filename   TEXT NOT NULL,
+    source     TEXT NOT NULL,          -- client | stock
+    status     TEXT NOT NULL,          -- pending | approved | rejected
+    alt        TEXT,
+    credit     TEXT,
+    width      INTEGER,
+    height     INTEGER,
+    created_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS reports (
     lead_id  INTEGER NOT NULL,
     period   TEXT NOT NULL,          -- YYYY-MM the report covers

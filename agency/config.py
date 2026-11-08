@@ -103,6 +103,7 @@ class Config:
     google_places_key: str = os.environ.get("GOOGLE_PLACES_API_KEY", "")
     anthropic_model: str = os.environ.get("ANTHROPIC_MODEL", "claude-opus-5-5")
     use_ai_copy: bool = _bool("USE_AI_COPY", bool(os.environ.get("ANTHROPIC_API_KEY")))
+    pexels_api_key: str = os.environ.get("PEXELS_API_KEY", "")   # optional free stock photos
     netlify_token: str = os.environ.get("NETLIFY_TOKEN", "")
     stripe_key: str = os.environ.get("STRIPE_SECRET_KEY", "")
     smtp_host: str = os.environ.get("SMTP_HOST", "")

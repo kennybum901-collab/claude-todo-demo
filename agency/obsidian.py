@@ -121,6 +121,18 @@ class ObsidianSync:
                 if fm.get("status") == e["status"]:
                     continue
             changes = ""
+            proposed = json.loads(e["proposed_json"]) if e["proposed_json"] else {}
+            embeds = ""
+            if proposed.get("photos"):  # copy the pending photos into the vault so you can see them
+                from .photos import Photos
+                ph, att = Photos(self.db, self.cfg), folder / "attachments"
+                att.mkdir(parents=True, exist_ok=True)
+                for row in self.db.conn.execute(
+                        f"SELECT * FROM photos WHERE id IN ({','.join('?' * len(proposed['photos']))})",
+                        proposed["photos"]).fetchall():
+                    if ph.path(row).is_file():
+                        (att / row["filename"]).write_bytes(ph.path(row).read_bytes())
+                        embeds += f"![[attachments/{row['filename']}|300]] "
             if e["proposed_json"]:
                 rows_md = "\n".join(
                     f"| **{f}** | {b.replace('|', '/')[:300]} | {a.replace('|', '/')[:300]} |"
@@ -142,7 +154,8 @@ class ObsidianSync:
                 f"approve: false\nreject: false\ntags: agency/edit\n---\n"
                 f"# ✏️ {e['business_name']}: {e['summary'] or 'site edit'}\n\n{how}\n\n"
                 f"Client: [[{note_name(lead)}]] · requested {e['created_at'][:10]}\n\n"
-                f"## Their message\n{quoted}\n\n{changes}",
+                f"## Their message\n{quoted}\n\n{changes}"
+                + (f"\n## Photos\n{embeds}\n" if embeds else ""),
                 encoding="utf-8",
             )
 

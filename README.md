@@ -36,12 +36,13 @@ See **[vault/Business Plan.md](vault/Business%20Plan.md)** for the offer, pricin
 | Daily review | `agency/digest.py`, `agency/qa.py` | Morning email to you: yesterday's numbers, sample emails word for word, newest sites attached, automatic quality checks, one-click pause |
 | Referrals | `agency/referrals.py` | Personal referral link per client; a sign-up page with consent for referred businesses ($100 off setup, priority outreach); the referrer gets a free month via Stripe coupon |
 | Review Booster | `agency/reviews.py` | Delivers the $99/mo add-on: a private "job done" phone page per client, review-request emails to their customers sent in the business's name, 1 reminder, click tracking, optional private feedback (never review-gated) |
+| Photos | `agency/photos.py` | Client-emailed photos (approved in Obsidian with previews) and optional free Pexels stock photos with credit; resized and GPS/EXIF stripped |
 | Orchestrator | `agency/orchestrator.py` | Runs everything in order; one failing bot never stops the rest |
 
 ## Quick start (safe: dry-run)
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirements.txt   # requests, jinja2, pillow (+ anthropic optional)
 cp .env.example .env               # fill in your company name + address
 python -m agency import-csv sample_leads.csv
 python -m agency run               # builds sites, logs (doesn't send) emails
@@ -191,6 +192,7 @@ Without `senders.json`, the single `SMTP_*` settings and `DAILY_EMAIL_CAP` are u
 
   The design is chosen once and saved with the site, so rebuilds never change it. `SITE_THEME` forces one design for every *new* site. All brand colors keep white text at ≥4.5:1 contrast. Only real facts are shown (actual rating and review count, no invented badges). The performance page has a **by design** table so you can see which converts best. Button text also fits the business now ("Book your appointment", "Call for a free estimate", "Call to order").
 - **Review Booster (automated):** when a client buys the add-on, they get a private link (`/jobs/<id>/<token>`, list them with `python -m agency jobs-links`) to bookmark on their phone. After a job they type the customer's email or tap a recent quote request. The customer then gets a short email **from the business's name** (replies go to the business) with the review link, plus one reminder after `REVIEW_REMINDER_DAYS` (4) if they haven't clicked. Clicks are tracked through a redirect and counted in the monthly report. The Google review link is filled in automatically for leads found through Google Places; for others use `python -m agency set-review-url <id> <url>`. **Every customer always gets the public review link.** The optional private-feedback form sits alongside it and is never a filter, because Google bans "review gating" and the FTC bans suppressing negative reviews. One request per customer per business; opt-outs respected.
+- **Photos:** a client replies to any email with photos attached, and the photos become an edit request. The Obsidian `Edits/` note shows them inline (copied to `Edits/attachments/`); approve with `approve: true` or `edit-approve <id>`. Approved photos appear as a full-width hero image plus an "Our Work" gallery with lazy loading and proper alt text, in every design. With `PEXELS_API_KEY` set, sites that have no client photos get up to 3 free niche-matched Pexels photos, credited in the footer. Client photos always replace stock ones. Every image is opened and **re-encoded with Pillow**: non-images (e.g. renamed executables) are rejected, images are resized to 1600px, and **all EXIF metadata including GPS location is removed**. Only approved photos are ever copied into a published site. Only existing clients can send photos.
 - **Automatic DB migration:** existing databases get new columns on startup.
 
 ## Tests
