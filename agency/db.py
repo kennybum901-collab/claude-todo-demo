@@ -140,7 +140,10 @@ CREATE TABLE IF NOT EXISTS review_requests (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
     lead_id        INTEGER NOT NULL,     -- the client (business)
     customer_name  TEXT,
-    customer_email TEXT NOT NULL,
+    customer_email TEXT NOT NULL,      -- email, or 'tel:+1...' for text-only requests (keeps one-per-customer)
+    customer_phone TEXT,
+    sms_consent    INTEGER,
+    channel        TEXT,               -- email | sms
     created_at     TEXT NOT NULL,
     sent_at        TEXT,
     reminded_at    TEXT,
@@ -201,6 +204,7 @@ class DB:
                   "subscription_id": "TEXT", "sender": "TEXT", "score": "INTEGER",
                   "score_reason": "TEXT", "referred_by": "INTEGER", "theme": "TEXT", "review_url": "TEXT"},
         "events": {"sender": "TEXT"},
+        "review_requests": {"customer_phone": "TEXT", "sms_consent": "INTEGER", "channel": "TEXT"},
     }
 
     def _migrate(self) -> None:

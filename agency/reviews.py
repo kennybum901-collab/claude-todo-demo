@@ -27,6 +27,7 @@ from .config import Config
 from .db import DB, now
 from .mailer import Mailer
 from .quotes import EMAIL_RE
+from .sms import SMS, in_quiet_hours, normalize_phone, suppression_key
 from .unsubscribe import url as unsubscribe_url
 
 log = logging.getLogger(__name__)
@@ -77,18 +78,30 @@ class ReviewError(ValueError):
     pass
 
 
-def request_review(db: DB, lead_id: int, name: str, email: str) -> int:
+def request_review(db: DB, lead_id: int, name: str, email: str, phone: str = "",
+                   sms_consent: bool = False) -> int:
+    """Queue a review request. Text if the customer agreed to texts, otherwise email."""
     if not has_booster(db, lead_id):
         raise ReviewError("Review Booster isn't active for this business.")
     email = (email or "").strip().lower()[:200]
-    if not EMAIL_RE.match(email):
+    tel = normalize_phone(phone) if phone else None
+    if phone and not tel:
+        raise ReviewError("That phone number doesn't look right.")
+    if email and not EMAIL_RE.match(email):
         raise ReviewError("That email address doesn't look right.")
+    use_sms = bool(tel and sms_consent)
+    if not email and not use_sms:
+        raise ReviewError("Enter the customer's email, or their mobile number and tick that they agreed to a text.")
+    key = email or suppression_key(tel)
     with db.tx() as c:
-        cur = c.execute("INSERT OR IGNORE INTO review_requests (lead_id, customer_name, customer_email, created_at) "
-                        "VALUES (?,?,?,?)", (lead_id, (name or "").strip()[:100], email, now()))
+        cur = c.execute(
+            "INSERT OR IGNORE INTO review_requests (lead_id, customer_name, customer_email, customer_phone, "
+            "sms_consent, channel, created_at) VALUES (?,?,?,?,?,?,?)",
+            (lead_id, (name or "").strip()[:100], key, tel, int(bool(sms_consent and tel)),
+             "sms" if use_sms else "email", now()))
     if not cur.rowcount:
-        raise ReviewError(f"{email} has already been asked for a review.")
-    db.log("reviews", "review_requested", email, lead_id)
+        raise ReviewError(f"{email or tel} has already been asked for a review.")
+    db.log("reviews", "review_requested", f"{'text' if use_sms else 'email'} {email or tel}", lead_id)
     return cur.lastrowid
 
 
@@ -107,9 +120,10 @@ def record_click(db: DB, request_id: int) -> str | None:
 class ReviewBot:
     name = "reviews"
 
-    def __init__(self, db: DB, cfg: Config, mailer: Mailer | None = None):
+    def __init__(self, db: DB, cfg: Config, mailer: Mailer | None = None, http=None):
         self.db, self.cfg = db, cfg
         self.mailer = mailer or Mailer(db, cfg)
+        self.http = http
 
     # ---------- emails ----------
     def welcome(self, client) -> bool:
@@ -159,8 +173,17 @@ class ReviewBot:
         msg.set_content("\n".join(lines) + "\n")
         return msg
 
+    def sms_body(self, req, client, reminder: bool = False) -> str:
+        name = (req["customer_name"] or "").split(" ")[0]
+        link = click_url(req["id"], self.cfg) or review_url_for(client)
+        hello = f"Hi {name}, " if name else "Hi, "
+        ask = ("a quick reminder: " if reminder else "") + f"thanks for choosing {client['business_name']}! "
+        return f"{hello}{ask}Would you leave a quick review? {link} Reply STOP to opt out."
+
     def _send(self, req, client, reminder: bool) -> bool:
-        if self.db.is_suppressed(req["customer_email"]):
+        if req["channel"] == "sms":
+            return self._send_sms(req, client, reminder)
+        if req["customer_email"].startswith("tel:") or self.db.is_suppressed(req["customer_email"]):
             return False
         sender = self.mailer.pick({"sender": None})
         if sender is None:
@@ -168,10 +191,30 @@ class ReviewBot:
         self.mailer.send(sender, self.compose(req, client, reminder), bot=self.name, lead_id=client["id"],
                          detail=f"review {'reminder' if reminder else 'request'} #{req['id']}",
                          reply_to=client["email"] or None, from_name=client["business_name"])
+        self._mark(req, reminder)
+        return True
+
+    def _send_sms(self, req, client, reminder: bool) -> bool:
+        tel = req["customer_phone"]
+        if not (tel and req["sms_consent"]) or self.db.is_suppressed(suppression_key(tel)):
+            return False
+        if in_quiet_hours(self.cfg):
+            return False  # try again on a later run, inside sending hours
+        sms = SMS(self.cfg, self.http)
+        try:
+            sid = sms.send(tel, self.sms_body(req, client, reminder))
+        except Exception as exc:  # requests errors, bad number, etc.
+            self.db.log(self.name, "error", f"sms #{req['id']}: {exc}", client["id"])
+            return False
+        self.db.log(self.name, "sms_sent" if sms.live else "dry_sms",
+                    f"review {'reminder' if reminder else 'request'} #{req['id']} ({sid})", client["id"])
+        self._mark(req, reminder)
+        return True
+
+    def _mark(self, req, reminder: bool) -> None:
         with self.db.tx() as c:
             c.execute(f"UPDATE review_requests SET {'reminded_at' if reminder else 'sent_at'} = ? WHERE id = ?",
                       (now(), req["id"]))
-        return True
 
     def run(self) -> dict:
         out = {"welcomed": 0, "sent": 0, "reminded": 0}
@@ -221,6 +264,11 @@ JOBS_PAGE = """<h1>Ask for a review</h1>
 {notice}
 <form method="post" style="display:grid;gap:10px">
 <label>Customer name<br><input name="name" maxlength="100" style="width:100%;padding:10px"></label>
-<label>Customer email<br><input name="email" type="email" required maxlength="200" style="width:100%;padding:10px"></label>
+<label>Customer email<br><input name="email" type="email" maxlength="200" style="width:100%;padding:10px"></label>
+{sms_fields}
 <button type="submit">Ask for a review</button></form>
 {recent}"""
+
+
+SMS_FIELDS = """<label>Mobile number (optional)<br><input name="phone" type="tel" maxlength="40" style="width:100%;padding:10px"></label>
+<label><input type="checkbox" name="sms_consent"> The customer agreed to get a text about this</label>"""

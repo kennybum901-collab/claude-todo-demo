@@ -31,7 +31,7 @@ from .config import Config
 from .db import DB, now
 from .orchestrator import Orchestrator
 from .digest import verify_control
-from .reviews import JOBS_PAGE, ReviewError, has_booster, record_click, request_review, verify_click, verify_jobs
+from .reviews import SMS_FIELDS, JOBS_PAGE, ReviewError, has_booster, record_click, request_review, verify_click, verify_jobs
 from .referrals import LANDING, ReferralError, referrer_for_code, submit as submit_referral
 from .quotes import QuoteError, submit as submit_quote, verify as verify_quote
 from .unsubscribe import verify as verify_unsubscribe
@@ -184,6 +184,22 @@ def make_handler(cfg: Config):
             fwd = self.headers.get("X-Forwarded-For", "")
             return fwd.split(",")[0].strip() or self.client_address[0]
 
+        def _twilio_inbound(self, body: bytes):
+            """Inbound text (Twilio webhook): STOP-type replies suppress the number."""
+            from .sms import STOP_WORDS, normalize_phone, suppression_key, verify_twilio
+            params = {k: v[0] for k, v in parse_qs(body.decode(errors="ignore"), keep_blank_values=True).items()}
+            url = f"{cfg.public_url}/twilio/sms"
+            if not verify_twilio(cfg.twilio_auth_token, url, params, self.headers.get("X-Twilio-Signature", "")):
+                return self._send(403, "forbidden", "text/plain")
+            tel = normalize_phone(params.get("From", ""))
+            word = (params.get("Body", "").strip().split() or [""])[0].lower().strip(".!")
+            if tel and word in STOP_WORDS:
+                db = self._db()
+                db.suppress(suppression_key(tel), "sms STOP")
+                db.log("sms", "unsubscribed", tel)
+            # empty TwiML: Twilio itself sends the carrier-required STOP confirmation
+            return self._send(200, "<?xml version='1.0' encoding='UTF-8'?><Response></Response>", "text/xml")
+
         def _redirect(self, url: str) -> None:
             self.send_response(302)
             self.send_header("Location", url)
@@ -203,8 +219,10 @@ def make_handler(cfg: Config):
                 f"<span style='flex:1'>{escape(r['name'] or '')} · {escape(r['email'])}</span>"
                 f"<button type='submit'>Ask</button></form>" for r in recent)
             recent_html = f"<h2>Recent quote requests</h2>{rows}" if rows else ""
+            from .sms import SMS
             self._send(200, PAGE.format(title="Ask for a review", body=JOBS_PAGE.format(
-                business=escape(lead["business_name"]), notice=notice, recent=recent_html)))
+                business=escape(lead["business_name"]), notice=notice, recent=recent_html,
+                sms_fields=SMS_FIELDS if SMS(cfg).configured else "")))
 
         def _jobs(self, path: str, body: bytes | None):
             parts = path.strip("/").split("/")  # jobs/<lead_id>/<token>
@@ -217,8 +235,10 @@ def make_handler(cfg: Config):
                 return self._jobs_page(db, lead_id)
             form = {k: v[0] for k, v in parse_qs(body.decode(errors="ignore")).items()}
             try:
-                request_review(db, lead_id, form.get("name", ""), form.get("email", ""))
-                notice = f"<p style='color:#006300'><strong>✓ Done.</strong> {escape(form.get('email', ''))} will get a review request shortly.</p>"
+                request_review(db, lead_id, form.get("name", ""), form.get("email", ""), form.get("phone", ""),
+                               sms_consent=form.get("sms_consent") in ("on", "1", "yes"))
+                who = form.get("email") or form.get("phone", "")
+                notice = f"<p style='color:#006300'><strong>✓ Done.</strong> {escape(who)} will get a review request shortly.</p>"
             except ReviewError as exc:
                 notice = f"<p style='color:#b42f2f'>{escape(str(exc))}</p>"
             return self._jobs_page(db, lead_id, notice)
@@ -393,6 +413,8 @@ def make_handler(cfg: Config):
                 state = "paused" if action == "pause" else "resumed"
                 return self._send(200, PAGE.format(title=f"Sending {state}", body=(
                     f"<h1>Marketing email {state}</h1><p>Takes effect on the bots' next run.</p>")))
+            if u.path == "/twilio/sms":
+                return self._twilio_inbound(body)
             if u.path.startswith("/jobs/"):
                 return self._jobs(u.path, body)
             if u.path.startswith("/rv/"):

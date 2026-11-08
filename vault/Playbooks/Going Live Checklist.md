@@ -16,4 +16,5 @@ tags: agency/playbook
 - [ ] `ALERT_WEBHOOK_URL` set (e.g. ntfy.sh topic on your phone) and a test alert received
 - [ ] Copy `data/backups/` off the server weekly (or snapshot the VPS)
 - [ ] Uptime monitor pointed at `https://bots.yourstudio.com/health`
+- [ ] (Optional texts) Twilio number registered for A2P 10DLC; incoming webhook set to `https://<server>/twilio/sms`
 - [ ] `DRY_RUN=0`, `DAILY_EMAIL_CAP=20` for week one, then the daemon or cron

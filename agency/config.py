@@ -104,6 +104,13 @@ class Config:
     anthropic_model: str = os.environ.get("ANTHROPIC_MODEL", "claude-opus-5-5")
     use_ai_copy: bool = _bool("USE_AI_COPY", bool(os.environ.get("ANTHROPIC_API_KEY")))
     pexels_api_key: str = os.environ.get("PEXELS_API_KEY", "")   # optional free stock photos
+    # Text messages (Review Booster); all optional
+    twilio_account_sid: str = os.environ.get("TWILIO_ACCOUNT_SID", "")
+    twilio_auth_token: str = os.environ.get("TWILIO_AUTH_TOKEN", "")
+    twilio_from: str = os.environ.get("TWILIO_FROM", "")            # +1... number or MG... messaging service
+    sms_timezone: str = os.environ.get("SMS_TIMEZONE", "America/Chicago")
+    sms_quiet_start: int = _int("SMS_QUIET_START", 9)               # texts only between 9:00 ...
+    sms_quiet_end: int = _int("SMS_QUIET_END", 20)                  # ... and 20:00 local time
     netlify_token: str = os.environ.get("NETLIFY_TOKEN", "")
     stripe_key: str = os.environ.get("STRIPE_SECRET_KEY", "")
     smtp_host: str = os.environ.get("SMTP_HOST", "")
