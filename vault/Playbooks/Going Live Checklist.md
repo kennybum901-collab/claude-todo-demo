@@ -3,7 +3,7 @@ tags: agency/playbook
 ---
 # 🚀 Going Live Checklist
 
-Run `python -m agency doctor` first and after every change below; it tests each item it can and tells you what's missing.
+Run `python -m agency setup` to fill in `.env`, then `python -m agency doctor` and after every change below; it tests each item it can and tells you what's missing.
 
 - [ ] Business registered (LLC/EIN), business bank account, Stripe connected
 - [ ] `.env`: real company name, **postal address**, email, URL

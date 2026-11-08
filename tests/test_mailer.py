@@ -111,3 +111,10 @@ def test_senders_file_loading(env, tmp_path, monkeypatch):
     assert s.password == "secret" and s.smtp_user == "a@x.example" and s.daily_cap == 30
     (fallback,) = load_senders(cfg)
     assert fallback.email == cfg.company_email and fallback.daily_cap == cfg.daily_email_cap
+
+
+def test_single_inbox_sends_from_its_own_login(env):
+    db, cfg = env
+    (s,) = load_senders(replace(cfg, smtp_host="smtp.gmail.com", smtp_user="alex@get-studio.example",
+                                company_email="hi@studio.example"))
+    assert s.email == "alex@get-studio.example"     # not the main domain: keeps SPF/DMARC aligned

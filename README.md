@@ -41,6 +41,18 @@ See **[vault/Business Plan.md](vault/Business%20Plan.md)** for the offer, pricin
 
 ## Quick start (safe: dry-run)
 
+**Easiest:** `pip install -r requirements.txt && python -m agency setup`. It asks plain questions:
+
+- your business details, rejecting placeholder values
+- prices in dollars
+- types of business × cities to target
+- an email provider preset (Gmail / Microsoft 365 / Zoho / custom)
+- keys for each service, each with a pointer to where to get it, each skippable
+
+It generates `APP_SECRET` and the `/admin` password, backs up any existing `.env`, writes the new one with owner-only permissions, keeps `DRY_RUN=1`, and finishes by running `doctor`. Re-run it any time: current values are the defaults (press Enter to keep them).
+
+Or by hand:
+
 ```bash
 pip install -r requirements.txt   # requests, jinja2, pillow (+ anthropic optional)
 cp .env.example .env               # fill in your company name + address

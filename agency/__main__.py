@@ -5,6 +5,7 @@ import argparse
 import csv
 import json
 import logging
+import os
 import sys
 
 from .bots.billing_bot import BillingBot
@@ -37,6 +38,8 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("pause", help="KILL SWITCH: stop all marketing email (outreach, offers, reports)")
     sub.add_parser("resume", help="resume marketing email after `pause`")
     sub.add_parser("qa", help="run quality checks on recent sites and emails")
+    st = sub.add_parser("setup", help="guided setup: answers a few questions and writes .env for you")
+    st.add_argument("--offline", action="store_true", help="skip the connection tests at the end")
     dr = sub.add_parser("doctor", help="check settings and test every connection before going live")
     dr.add_argument("--offline", action="store_true", help="only check settings, no network calls")
     dr.add_argument("--json", action="store_true")
@@ -120,6 +123,22 @@ def main(argv: list[str] | None = None) -> int:
                 bad += 1
                 print(f"email #{m['id']} to {m['to_addr']}: {p}")
         print("all checks passed" if not bad else f"{bad} problem(s)")
+    elif args.cmd == "setup":
+        import importlib
+        from . import config as config_module
+        from .doctor import Doctor
+        from .setup_wizard import Wizard, read_env
+        wiz = Wizard()
+        wiz.run()
+        # Config defaults are read when the module loads: load the new .env, then reload
+        for k, v in read_env(wiz.path).items():
+            os.environ[k] = v
+        fresh = importlib.reload(config_module).Config()
+        print("\nChecking your setup...\n")
+        doc = Doctor(fresh, offline=args.offline)
+        doc.run()
+        print(doc.render())
+        return 1 if doc.r.blocking else 0
     elif args.cmd == "doctor":
         from .doctor import Doctor
         doc = Doctor(config, offline=args.offline)

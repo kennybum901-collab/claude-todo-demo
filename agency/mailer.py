@@ -75,8 +75,11 @@ def load_senders(cfg: Config) -> list[Sender]:
             item.setdefault("from_name", f"{cfg.owner_name} at {cfg.company_name}")
             senders.append(Sender(**item))
         return senders
+    # Send FROM the account we log in with: using the main business address while
+    # authenticating as a separate sending domain fails SPF/DMARC (spam folder).
+    from_addr = cfg.smtp_user if "@" in (cfg.smtp_user or "") else cfg.company_email
     return [Sender(
-        email=cfg.company_email,
+        email=from_addr,
         from_name=f"{cfg.owner_name} at {cfg.company_name}",
         smtp_host=cfg.smtp_host, smtp_port=cfg.smtp_port,
         smtp_user=cfg.smtp_user, password=cfg.smtp_password, imap_host=cfg.imap_host,
